@@ -1,0 +1,6 @@
+# Optional: Ultralytics YOLOv8 detector (AGPL-3.0). Use with `python agent.py --detector yolov8`.
+# CPU build of PyTorch (smaller). For an NVIDIA GPU use the CUDA index from pytorch.org instead.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+ultralytics>=8.3

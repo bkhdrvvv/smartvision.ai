@@ -1,0 +1,37 @@
+# SMARTVISION AI — public web server.
+# Caddy gets a FREE Let's Encrypt HTTPS certificate for the domain by itself and renews it automatically
+# (no cron, no certbot). Requirements: the domain's DNS A record points to this server, ports 80 and 443 are open.
+
+www.smartvisionai.uz {
+	redir https://smartvisionai.uz{uri} permanent
+}
+
+smartvisionai.uz {
+	encode zstd gzip
+
+	# receipts / chat photos / voice notes are ≤ 5 MB; Edge agents send JPEG frames and events
+	request_body {
+		max_size 13MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), camera=(), microphone=(self)"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:3000 {
+		# the live camera relay is a long-lived MJPEG stream — never buffer it
+		flush_interval -1
+	}
+
+	log {
+		output file /var/log/caddy/smartvision.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+	}
+}

@@ -1,0 +1,32 @@
+node_modules
+.next
+.next-prod
+.next-dev
+out
+.tools
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
+*.tsbuildinfo
+next-env.d.ts
+html.html
+edge/.venv
+edge/token.txt
+edge/stream_key.txt
+edge/models/*.pt
+edge/samples/*.avi
+edge/token-*.txt
+.pgdata
+backups
+
+# test browser profiles (cookies), big AI models (download instructions in edge/README / requirements), logs
+screenshots/**/prof*/
+edge/models/*.onnx
+edge/__pycache__/
+**/__pycache__/
+*.log
+.claude/settings.local.json
+
+# screenshots show real e-mail addresses — kept on this computer only
+screenshots/

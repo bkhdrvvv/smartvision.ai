@@ -1,0 +1,9 @@
+# Default detector: YOLOX (Apache-2.0) on ONNX Runtime (MIT) — free for commercial use, ~200 MB installed.
+onnxruntime>=1.18
+opencv-python>=4.10
+numpy
+lap              # optimal tracker assignment (MIT); without it a greedy fallback is used
+
+# Optional fallback only (`--detector yolov8`): Ultralytics YOLOv8 is AGPL-3.0 — needs a paid licence
+# to be sold as a closed product. Install with:  pip install -r requirements-yolov8.txt
+fast-alpr[onnx]  # licence plates (MIT): plate detector + OCR, CPU

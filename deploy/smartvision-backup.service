@@ -1,0 +1,9 @@
+[Unit]
+Description=SMARTVISION AI daily backup (database dump + uploads)
+
+[Service]
+Type=oneshot
+User=smartvision
+WorkingDirectory=/opt/smartvision
+# full JSON copy of every table (restorable with scripts/restore.cjs) + the private files (receipts, chat media)
+ExecStart=/bin/bash -c 'set -e; d=$(date +%%F); node scripts/backup-now.cjs backups/db-$d.json; tar czf backups/uploads-$d.tar.gz uploads; ls -1t backups/db-*.json | tail -n +15 | xargs -r rm --; ls -1t backups/uploads-*.tar.gz | tail -n +15 | xargs -r rm --'

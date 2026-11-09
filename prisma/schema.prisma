@@ -1,0 +1,588 @@
+// SMARTVISION AI — database schema (PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum ServiceType {
+  SCHOOL
+  HOME
+  FARM
+}
+
+enum PlanTier {
+  START
+  STANDARD
+  PRO
+}
+
+/// Lifecycle shown in the UI: Request → Approved → Awaiting payment → Receipt submitted → Under review → Active
+enum SubscriptionStatus {
+  REQUESTED
+  APPROVED
+  AWAITING_PAYMENT
+  RECEIPT_SUBMITTED
+  UNDER_REVIEW
+  ACTIVE
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  AWAITING_PAYMENT
+  RECEIPT_SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum CameraStatus {
+  ONLINE
+  WEAK
+  OFFLINE
+}
+
+enum EventType {
+  ENTRY
+  EXIT
+  PERSON
+  UNKNOWN_PERSON
+  OCCUPANCY
+  SAFETY
+  CAMERA_STATUS
+  LIVESTOCK
+  VEHICLE
+  FIRE_SMOKE
+  INTRUSION
+  FALL
+  ZONE
+  STUDENT
+  TAMPER
+  LOITER
+  CAMERA_HEALTH
+  CORRIDOR
+  ANIMAL_OUT
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum NotificationKind {
+  EVENT
+  CAMERA
+  PAYMENT
+  SUBSCRIPTION
+  SYSTEM
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  role          Role           @default(CUSTOMER)
+  locale        String         @default("uz")
+  emailVerifiedAt DateTime?
+  /// accepted Terms of Use + Privacy Policy and consented to personal data processing (which version, when)
+  termsAcceptedAt DateTime?
+  termsVersion  String?
+  /// Google account id when the user signs in with Google
+  googleId      String?        @unique
+  /// alert channels besides in-app notifications
+  notifyEmail   Boolean        @default(true)
+  notifySms     Boolean        @default(false)
+  /// Telegram chat linked through the bot (/start code); alerts with photos go there
+  telegramChatId String?       @unique
+  telegramName  String?
+  /// role inside the customer's organization: OWNER (everything) · MEMBER (cameras, events) · VIEWER (watch only)
+  orgRole       String         @default("OWNER")
+  authTokens    AuthToken[]
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organizationId String?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  tickets       Ticket[]
+  ticketMessages TicketMessage[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([organizationId])
+}
+
+/// A customer site (a school, a household, a farm).
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  domain        String?
+  service       ServiceType
+  address       String?
+  phone         String?
+  /// true for seeded sample organizations → UI shows "Demo mode · sample data"
+  demo          Boolean        @default(false)
+  /// set by an admin: the customer can't sign in, the Edge agent is rejected; data is kept
+  blockedAt     DateTime?
+  blockReason   String?
+  /// guard mode: when presence counts as an alert. auto = industry default · custom = guardFrom–guardTo · always · off
+  guardMode     String         @default("auto")
+  guardFrom     String         @default("22:00")
+  guardTo       String         @default("06:00")
+  /// "speaker warning": the customer said a speaker is connected and confirmed hearing the test sound
+  speakerEnabled    Boolean    @default(false)
+  speakerVerifiedAt DateTime?
+  /// weekly summary on Mondays (Telegram + email)
+  weeklyReport  Boolean        @default(true)
+  /// short summary every evening on Telegram
+  dailySummary  Boolean        @default(true)
+  /// alert when a car with a plate that is not on the "known" list arrives
+  unknownPlateAlert Boolean    @default(false)
+  /// school: lessons start (later = late) and when the absent list is sent
+  schoolStart   String         @default("08:00")
+  /// lessons end: corridor watch runs between start and end
+  schoolEnd     String         @default("14:00")
+  reviews       Review[]
+  absentReportAt String        @default("09:00")
+  plateList     PlateListItem[]
+  /// invite-a-friend: own code, and who invited this customer
+  referralCode  String?        @unique
+  referredById  String?
+  referralRewardedAt DateTime?
+  users         User[]
+  students      Student[]
+  subscriptions Subscription[]
+  devices       EdgeDevice[]
+  cameras       Camera[]
+  events        Event[]
+  payments      Payment[]
+  tickets       Ticket[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  service       ServiceType
+  tier          PlanTier
+  maxCameras    Int
+  priceMonthly  Int            // UZS, whole sums
+  /// Feature keys resolved through i18n dictionaries (e.g. "f.realtime")
+  features      String[]
+  recommended   Boolean        @default(false)
+  active        Boolean        @default(true)
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([service, tier])
+}
+
+model Subscription {
+  id              String             @id @default(cuid())
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  plan            Plan               @relation(fields: [planId], references: [id])
+  planId          String
+  status          SubscriptionStatus @default(REQUESTED)
+  coupon          Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponId        String?
+  requestedAt     DateTime           @default(now())
+  approvedAt      DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  payments        Payment[]
+  history         SubscriptionEvent[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([organizationId, status])
+}
+
+model SubscriptionEvent {
+  id             String             @id @default(cuid())
+  subscription   Subscription       @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  status         SubscriptionStatus
+  note           String?
+  createdAt      DateTime           @default(now())
+
+  @@index([subscriptionId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  reference      String        @unique // PAY-2026-1106-0042
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  amount         Int           // UZS expected amount after coupon
+  status         PaymentStatus @default(AWAITING_PAYMENT)
+  periodStart    DateTime
+  periodEnd      DateTime
+  paidToCard     String        // masked card the customer was told to pay to
+  receiptKey     String?       // storage key, never public
+  receiptName    String?
+  receiptMime    String?
+  receiptSize    Int?
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewedById   String?
+  adminNote      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status])
+  @@index([organizationId])
+}
+
+model Coupon {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  percentOff    Int            // 1..100
+  maxRedemptions Int?
+  redemptions   Int            @default(0)
+  expiresAt     DateTime?
+  active        Boolean        @default(true)
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+}
+
+model EdgeDevice {
+  id             String       @id @default(cuid())
+  serial         String       @unique // EDGE-SCH-0012
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  firmware       String       @default("v1.4.2")
+  /// sha256 of the device API token; plain token is shown once to admin
+  tokenHash      String
+  lastHeartbeat  DateTime?
+  cpu            Int?
+  gpu            Int?
+  cameras        Camera[]
+  createdAt      DateTime     @default(now())
+}
+
+model Camera {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  device         EdgeDevice?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  deviceId       String?
+  code           String       // "Cam 01"
+  name           String       // "Main gate"
+  location       String?
+  protocol       String       @default("RTSP")
+  /// RTSP/ONVIF address — only reachable by the Edge server, never sent to browsers
+  sourceUrl      String?
+  /// Browser playable stream published by the Edge gateway (WebRTC/HLS). Null = no live video.
+  streamUrl      String?
+  resolution     String       @default("1080p")
+  fps            Int          @default(25)
+  status         CameraStatus @default(ONLINE)
+  signal         Int          @default(100) // 0..100
+  lastSeenAt     DateTime?
+  aiEnabled      Boolean      @default(true)
+  scene          String       @default("gate") // gate | classroom | parking | house | barn
+  /// Night Vision (Pro plan): auto = when the picture is dark · on = always · off
+  nightMode      String       @default("auto")
+  /// reported by the Edge agent: low-light enhancement is running right now
+  nightActive    Boolean      @default(false)
+  capacity       Int?
+  /// forbidden zone drawn in the dashboard: polygon of [x, y] points, 0..1 of the frame. Person inside → ZONE alert
+  zone           Json?
+  /// AI sensitivity: detections below this confidence are ignored. Raised a little each time
+  /// the customer marks an alert of this camera as a false alarm.
+  minConf        Float        @default(0.4)
+  /// farm: the animals' allowed area (polygon 0..1); an animal outside it → ANIMAL_OUT
+  pen            Json?
+  /// heatmap: where people walk, 32×18 grid of counts (sent by the Edge agent, a few KB)
+  heat           Json?
+  heatAt         DateTime?
+  events         Event[]
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model Event {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  camera         Camera?      @relation(fields: [cameraId], references: [id], onDelete: SetNull)
+  cameraId       String?
+  type           EventType
+  severity       Severity     @default(INFO)
+  confidence     Float?
+  trackId        String?
+  value          Int?         // occupancy count etc.
+  /// private face / head crop sent by the Edge agent (uploads/snapshots/<key>); served only to the owner
+  snapshotKey    String?
+  resolved       Boolean      @default(false)
+  /// recognised student (school attendance)
+  studentId      String?
+  /// licence plate read by the Edge agent (VEHICLE events), e.g. "01A123BC"
+  plate          String?
+  /// marked by the customer as a false alarm
+  falseAlarm     Boolean      @default(false)
+  occurredAt     DateTime     @default(now())
+
+  @@index([organizationId, occurredAt])
+  @@index([cameraId])
+  @@index([organizationId, plate])
+}
+
+/// Customer review: written in the dashboard, shown on the public site only after the admin approves it
+model Review {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  author         String       // name shown on the site
+  rating         Int          // 1..5
+  text           String
+  approved       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([approved, createdAt])
+}
+
+/// Known (WHITE) and wanted / banned (BLACK) licence plates of one customer
+model PlateListItem {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  plate          String
+  kind           String       // WHITE | BLACK
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, plate])
+}
+
+/// School attendance: a student registered with a face photo; the Edge agent recognises the face at the gate.
+model Student {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  name           String
+  /// STUDENT or TEACHER (teachers: own attendance list, no parent link)
+  kind           String       @default("STUDENT")
+  group          String?      // class, e.g. "7-B"
+  /// private face photo (uploads/faces/<key>), only for the owner and the Edge agent
+  photoKey       String?
+  /// parents open t.me/<bot>?start=p_<parentCode> to get "arrived / left" messages
+  parentCode     String       @unique
+  parentChats    String[]     @default([])
+  attendance     Attendance[]
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId   String
+  day         String   // YYYY-MM-DD (Tashkent time)
+  firstSeenAt DateTime
+  lastSeenAt  DateTime
+  camera      String?
+
+  @@unique([studentId, day])
+  @@index([day])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      NotificationKind
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+enum AuthTokenKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum EmailCodePurpose {
+  REGISTER
+  LOGIN
+}
+
+/// 6-digit codes emailed for sign-up (prove the address before an account exists) and password-less sign-in
+model EmailCode {
+  id        String           @id @default(cuid())
+  email     String
+  purpose   EmailCodePurpose
+  codeHash  String
+  attempts  Int              @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([email, purpose])
+}
+
+/// One-time links (email verification, password reset). Only the SHA-256 of the token is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      AuthTokenKind
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, kind])
+}
+
+enum OutboxChannel {
+  EMAIL
+  SMS
+}
+
+enum OutboxStatus {
+  QUEUED
+  SENT
+  FAILED
+  OUTBOX_ONLY // no provider configured — kept here so admins can read / test links
+}
+
+/// Every email / SMS the platform sends (delivery log + local "mailbox" when no provider is configured)
+model Outbox {
+  id        String        @id @default(cuid())
+  channel   OutboxChannel
+  to        String
+  subject   String?
+  body      String
+  status    OutboxStatus  @default(QUEUED)
+  error     String?
+  createdAt DateTime      @default(now())
+  sentAt    DateTime?
+
+  @@index([createdAt])
+}
+
+enum TicketKind {
+  COMPLAINT
+  QUESTION
+  SUGGESTION
+  TECHNICAL
+  PAYMENT
+}
+
+enum TicketStatus {
+  OPEN      // waiting for the admin
+  ANSWERED  // admin replied, waiting for the customer
+  CLOSED
+}
+
+/// Complaints & appeals (murojaatlar): from signed-in customers or from visitors of the public site.
+/// Sender details are copied in, so the admin always sees who wrote even if the account changes later.
+model Ticket {
+  id             String          @id @default(cuid())
+  number         Int             @unique @default(autoincrement()) // shown as #1042
+  kind           TicketKind
+  subject        String
+  status         TicketStatus    @default(OPEN)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String?
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         String?
+  name           String
+  email          String
+  phone          String?
+  /// visitors without an account reach their chat with a secret link kept in a cookie (sha256 stored)
+  guestTokenHash String?         @unique
+  /// unread for the customer (admin replied) / for the admin (customer wrote)
+  unreadCustomer Boolean         @default(false)
+  unreadAdmin    Boolean         @default(true)
+  /// presence in the chat: last poll from each side and when the current online stretch began
+  adminSeenAt    DateTime?
+  adminSince     DateTime?
+  clientSeenAt   DateTime?
+  clientSince    DateTime?
+  messages       TicketMessage[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([organizationId])
+}
+
+enum ChatMessageType {
+  TEXT
+  IMAGE
+  VOICE
+}
+
+model TicketMessage {
+  id          String          @id @default(cuid())
+  ticket      Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId    String
+  fromAdmin   Boolean         @default(false)
+  author      User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId    String?
+  type        ChatMessageType @default(TEXT)
+  body        String          @default("")
+  /// private file in ./uploads/chat (photo or voice note), served only to the two sides of the chat
+  fileKey     String?
+  fileMime    String?
+  fileSize    Int?
+  durationSec Int?
+  /// when the other side saw it ("seen" ticks)
+  readAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  service   ServiceType?
+  message   String
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+/// Key/value site settings editable by admin (payment card, phone, address…)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  action    String
+  target    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

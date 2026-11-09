@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1330 256" width="1330" height="256">
+  <!-- Horizontal logo for dark backgrounds (white text) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#132a63"/><stop offset="1" stop-color="#070d22"/></linearGradient>
+    <linearGradient id="ln" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6aa8ff"/><stop offset="1" stop-color="#3b6ff5"/></linearGradient>
+    <linearGradient id="iris" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="ai" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#5b8cff"/></linearGradient>
+  </defs>
+  <g transform="scale(.5)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+    <g fill="none" stroke="url(#ln)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M96 168V128q0-32 32-32h40"/><path d="M344 96h40q32 0 32 32v40"/><path d="M416 344v40q0 32-32 32h-40"/><path d="M168 416h-40q-32 0-32-32v-40"/>
+    </g>
+    <path d="M136 256Q256 120 376 256Q256 392 136 256Z" fill="#0a1430" stroke="#eaf2ff" stroke-width="22" stroke-linejoin="round"/>
+    <circle cx="256" cy="256" r="50" fill="url(#iris)"/><circle cx="256" cy="256" r="20" fill="#071026"/><circle cx="273" cy="239" r="9" fill="#fff"/>
+  </g>
+  <text x="300" y="160" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="104" font-weight="800" letter-spacing="2" fill="#ffffff">SMARTVISION<tspan dx="26" font-weight="700" fill="url(#ai)">AI</tspan></text>
+</svg>

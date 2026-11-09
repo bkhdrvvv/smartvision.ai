@@ -1,0 +1,62 @@
+{
+  "name": "smartvision-ai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack -p 3000",
+    "dev:webpack": "next dev -p 3000",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "serve": "node scripts/serve.mjs",
+    "prod": "next build && next start -p 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db": "node scripts/db.mjs",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@hookform/resolvers": "^3.9.1",
+    "@prisma/client": "^6.16.0",
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "@react-three/postprocessing": "^3.0.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "embedded-postgres": "^17.2.0-beta.15",
+    "framer-motion": "^11.15.0",
+    "gsap": "^3.12.5",
+    "hls.js": "^1.5.17",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.468.0",
+    "next": "15.5.4",
+    "nodemailer": "^6.9.16",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.54.0",
+    "three": "^0.172.0",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.172.0",
+    "leva": "^0.10.0",
+    "prisma": "^6.16.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

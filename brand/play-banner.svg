@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" width="1024" height="500">
+  <!-- Google Play feature graphic (1024x500) -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1d47"/><stop offset="1" stop-color="#050916"/></linearGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3b82f6" stop-opacity=".45"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#132a63"/><stop offset="1" stop-color="#070d22"/></linearGradient>
+    <linearGradient id="ln" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6aa8ff"/><stop offset="1" stop-color="#3b6ff5"/></linearGradient>
+    <linearGradient id="iris" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="ai" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#5b8cff"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".05"/></pattern>
+  </defs>
+  <rect width="1024" height="500" fill="url(#sky)"/>
+  <rect width="1024" height="500" fill="url(#grid)"/>
+  <circle cx="230" cy="250" r="230" fill="url(#halo)"/>
+  <g transform="translate(90 110) scale(.546875)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)" stroke="#ffffff" stroke-opacity=".08" stroke-width="3"/>
+    <g fill="none" stroke="url(#ln)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M96 168V128q0-32 32-32h40"/><path d="M344 96h40q32 0 32 32v40"/><path d="M416 344v40q0 32-32 32h-40"/><path d="M168 416h-40q-32 0-32-32v-40"/>
+    </g>
+    <path d="M136 256Q256 120 376 256Q256 392 136 256Z" fill="#0a1430" stroke="#eaf2ff" stroke-width="22" stroke-linejoin="round"/>
+    <circle cx="256" cy="256" r="50" fill="url(#iris)"/><circle cx="256" cy="256" r="20" fill="#071026"/><circle cx="273" cy="239" r="9" fill="#fff"/>
+  </g>
+  <g font-family="Segoe UI, Inter, Arial, sans-serif">
+    <text x="430" y="215" font-size="66" font-weight="800" letter-spacing="1.5" fill="#fff">SMARTVISION<tspan dx="16" font-weight="700" fill="url(#ai)">AI</tspan></text>
+    <text x="432" y="270" font-size="27" fill="#b8c7ea">Maktab, uy va ferma uchun aqlli kuzatuv</text>
+    <g font-size="21" font-weight="600" fill="#dbe7ff">
+      <rect x="432" y="306" width="150" height="44" rx="22" fill="#ffffff" fill-opacity=".07" stroke="#6aa8ff" stroke-opacity=".5"/>
+      <text x="507" y="335" text-anchor="middle">Jonli kamera</text>
+      <rect x="596" y="306" width="150" height="44" rx="22" fill="#ffffff" fill-opacity=".07" stroke="#6aa8ff" stroke-opacity=".5"/>
+      <text x="671" y="335" text-anchor="middle">AI hodisalar</text>
+      <rect x="760" y="306" width="164" height="44" rx="22" fill="#ffffff" fill-opacity=".07" stroke="#5eead4" stroke-opacity=".6"/>
+      <text x="842" y="335" text-anchor="middle">Night Vision</text>
+    </g>
+  </g>
+</svg>

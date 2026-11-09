@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "smartvision",
+      "runtimeExecutable": "C:\\Users\\dr_wi\\Desktop\\new file\\.tools\\node\\node.exe",
+      "runtimeArgs": ["scripts/serve.mjs"],
+      "port": 3000
+    },
+    {
+      "name": "smartvision-dev",
+      "runtimeExecutable": "C:\\Users\\dr_wi\\Desktop\\new file\\.tools\\node\\node.exe",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "3001"],
+      "port": 3001
+    }
+  ]
+}
