@@ -105,8 +105,9 @@ export function Shell({ info, children }: { info: ShellInfo; children: React.Rea
         <span className="text-[17px]">SMARTVISION <span className="font-medium text-brand-400">AI</span></span>
       </Link>
       <div className="mt-7 mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-fg-dim">{info.variant === "admin" ? d.dash.admin : d.dash.customer}</div>
-      {nav}
-      <div className="mt-auto space-y-3 pt-6">
+      {/* the menu scrolls on its own; the account block below always stays visible */}
+      <div className="scrollbar-thin -mx-4 min-h-0 flex-1 overflow-y-auto px-4 pb-2">{nav}</div>
+      <div className="shrink-0 space-y-3 pt-4">
         {info.variant === "admin" ? (
           <div className="card !rounded-2xl p-4">
             <div className="flex items-center gap-2 text-[14px] font-semibold"><ShieldCheck size={15} className="text-ok-soft" /> {d.dash.adminSession.title}</div>
@@ -140,7 +141,7 @@ export function Shell({ info, children }: { info: ShellInfo; children: React.Rea
   return (
     <Ctx.Provider value={info}>
       <div className="min-h-dvh bg-ink-900 lg:grid lg:grid-cols-[288px_1fr]">
-        <aside className="sticky top-0 hidden h-dvh border-r border-line bg-ink-950/50 p-5 lg:block">{sidebar}</aside>
+        <aside className="sticky top-0 hidden h-dvh overflow-hidden border-r border-line bg-ink-950/50 p-5 lg:block">{sidebar}</aside>
         <AnimatePresence>
           {open && (
             <motion.div className="fixed inset-0 z-[70] lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
