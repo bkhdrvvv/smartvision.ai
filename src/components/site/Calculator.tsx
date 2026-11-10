@@ -7,6 +7,7 @@ import type { PlanDTO } from "./Pricing";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n";
 import { cn, money } from "@/lib/format";
+import { yearPrice, YEAR_OFF } from "@/lib/billing";
 
 /** "How much will it cost?" — pick the place and the number of cameras, get the cheapest plan that fits. */
 export function PriceCalculator({ plans, authed, initial = "HOME" }: { plans: PlanDTO[]; authed: boolean; initial?: PlanDTO["service"] }) {
@@ -49,7 +50,7 @@ export function PriceCalculator({ plans, authed, initial = "HOME" }: { plans: Pl
             <div className="mt-1 text-[22px] font-extrabold">{d.pricing.tiers[fit.tier]} <span className="text-[14px] font-medium text-fg-muted">· <Cctv size={13} className="inline" /> {fmt(d.pricing.upTo, { n: fit.maxCameras })}</span></div>
             <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span><span className="font-display text-[34px] font-extrabold">{money(fit.priceMonthly)}</span> <span className="text-[13px] text-fg-muted">{d.common.uzs} / {x.calcMonth}</span></span>
-              <span className="text-[13px] text-fg-muted">{x.calcYear}: <b className="text-fg">{money(fit.priceMonthly * 12)}</b> {d.common.uzs}</span>
+              <span className="text-[13px] text-fg-muted">{x.calcYear}: <b className="text-fg">{money(yearPrice(fit.priceMonthly, fit.tier))}</b> <span className="text-ok-soft">(−{money(YEAR_OFF[fit.tier])})</span> {d.common.uzs}</span>
             </div>
           </div>
           <Link href={href(fit)} className="btn btn-primary">{x.calcPick}</Link>

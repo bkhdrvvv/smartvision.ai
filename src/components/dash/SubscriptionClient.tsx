@@ -8,6 +8,8 @@ import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n";
 import { cn, money } from "@/lib/format";
 import type { PlanDTO } from "@/components/site/Pricing";
+import { BillingToggle } from "@/components/site/BillingToggle";
+import { periodAmount, yearPrice, YEAR_OFF } from "@/lib/billing";
 
 export function CopyCard({ card }: { card: string }) {
   const { d } = useI18n();
@@ -109,13 +111,14 @@ export function PlanPicker({ plans, currentPlanId, preselect, trialAvailable }: 
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialMsg, setTrialMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const router = useRouter();
-  const { d } = useI18n();
+  const { d, f } = useI18n();
   const [planId, setPlanId] = useState(preselect && plans.some((p) => p.id === preselect) ? preselect : (plans.find((p) => p.recommended) ?? plans[0])?.id);
   const [code, setCode] = useState("");
   const [coupon, setCoupon] = useState<{ ok: boolean; pct?: number } | null>(null);
   const [state, action, pending] = useActionState<ActionResult, FormData>(requestPlan, undefined);
+  const [months, setMonths] = useState<1 | 12>(12);
   const plan = plans.find((p) => p.id === planId);
-  const price = plan ? (coupon?.ok && coupon.pct ? Math.round((plan.priceMonthly * (100 - coupon.pct)) / 100) : plan.priceMonthly) : 0;
+  const price = plan ? periodAmount(plan.priceMonthly, plan.tier, months, coupon?.ok ? coupon.pct : null) : 0;
 
   if (state?.ok) return <p className="rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok-soft">{state.message}</p>;
   if (trialMsg?.ok) return <p className="rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok-soft">{trialMsg.t}</p>;
@@ -146,6 +149,8 @@ export function PlanPicker({ plans, currentPlanId, preselect, trialAvailable }: 
         </div>
       )}
       <input type="hidden" name="planId" value={planId ?? ""} />
+      <input type="hidden" name="months" value={months} />
+      <BillingToggle months={months} onChange={setMonths} />
       <div className="grid gap-3 md:grid-cols-3">
         {plans.map((p) => (
           <button type="button" key={p.id} onClick={() => setPlanId(p.id)} className={cn("card p-5 text-left transition", planId === p.id ? "card-hl" : "hover:border-line-strong")}>
@@ -153,7 +158,8 @@ export function PlanPicker({ plans, currentPlanId, preselect, trialAvailable }: 
               <span className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand-400">{d.pricing.tiers[p.tier]}</span>
               {p.id === currentPlanId && <span className="chip chip-ok !h-5 !text-[10px]">{d.common.active}</span>}
             </div>
-            <div className="mt-3 font-display text-[28px] font-extrabold">{money(p.priceMonthly)} <span className="text-sm font-medium text-fg-dim">{d.common.uzs}</span></div>
+            <div className="mt-3 font-display text-[28px] font-extrabold">{money(months === 12 ? yearPrice(p.priceMonthly, p.tier) : p.priceMonthly)} <span className="text-sm font-medium text-fg-dim">{months === 12 ? f.bill.perYear : d.common.uzs}</span></div>
+            {months === 12 && <div className="mt-1 text-[12.5px]"><span className="text-fg-dim line-through">{money(p.priceMonthly * 12)}</span> <span className="ml-1 font-semibold text-ok-soft">{fmt(f.bill.save, { n: money(YEAR_OFF[p.tier]) })}</span></div>}
             <div className="text-[13px] text-fg-muted">{fmt(d.pricing.upTo, { n: p.maxCameras })}</div>
           </button>
         ))}
@@ -171,7 +177,7 @@ export function PlanPicker({ plans, currentPlanId, preselect, trialAvailable }: 
       {coupon && <p className={cn("text-sm", coupon.ok ? "text-ok-soft" : "text-bad-soft")}>{coupon.ok ? fmt(d.dash.subscriptionPage.couponOk, { n: coupon.pct! }) : d.dash.subscriptionPage.couponBad}</p>}
       {state?.error && <p className="err">{state.error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
-        <div className="text-fg-muted">{d.dash.subscriptionPage.monthly}: <span className="font-display text-2xl font-extrabold text-fg">{money(price)}</span> {d.common.uzs}</div>
+        <div className="text-fg-muted">{months === 12 ? f.bill.yearTotal : d.dash.subscriptionPage.monthly}: <span className="font-display text-2xl font-extrabold text-fg">{money(price)}</span> {d.common.uzs}</div>
         <button disabled={pending || !planId} className="btn btn-primary btn-lg">{pending ? <Loader2 size={16} className="animate-spin" /> : d.dash.subscriptionPage.request}</button>
       </div>
     </form>

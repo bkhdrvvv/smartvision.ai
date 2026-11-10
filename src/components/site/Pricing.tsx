@@ -10,6 +10,8 @@ import { KIND_ICON, type Kind } from "./Solutions";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n";
 import { cn, money } from "@/lib/format";
+import { yearPrice, YEAR_OFF } from "@/lib/billing";
+import { BillingToggle } from "./BillingToggle";
 
 export type PlanDTO = {
   id: string;
@@ -22,8 +24,9 @@ export type PlanDTO = {
 };
 
 export function Pricing({ plans, authed, initial = "SCHOOL" }: { plans: PlanDTO[]; authed: boolean; initial?: PlanDTO["service"] }) {
-  const { d } = useI18n();
+  const { d, f } = useI18n();
   const [svc, setSvc] = useState<PlanDTO["service"]>(initial);
+  const [months, setMonths] = useState<1 | 12>(1);
   const list = plans.filter((p) => p.service === svc).sort((a, b) => a.priceMonthly - b.priceMonthly);
   const tabs: { s: PlanDTO["service"]; k: Kind; label: string }[] = [
     { s: "SCHOOL", k: "school", label: "Smart School" },
@@ -50,11 +53,13 @@ export function Pricing({ plans, authed, initial = "SCHOOL" }: { plans: PlanDTO[
         </div>
       </div>
 
-      <div className="mt-12 grid gap-5 lg:grid-cols-3">
+      <div className="mt-6"><BillingToggle months={months} onChange={setMonths} center /></div>
+
+      <div className="mt-10 grid gap-5 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {list.map((p, i) => {
             const hl = p.recommended;
-            const href = authed ? `/dashboard/subscription?plan=${p.id}` : `/register?plan=${p.id}`;
+            const href = authed ? `/dashboard/subscription?plan=${p.id}#plans` : `/register?plan=${p.id}`;
             return (
               <motion.div
                 key={p.id}
@@ -71,10 +76,17 @@ export function Pricing({ plans, authed, initial = "SCHOOL" }: { plans: PlanDTO[
                 </div>
                 <div className="mt-2 flex items-center gap-2 text-[13px] text-fg-muted"><Cctv size={14} /> {fmt(d.pricing.upTo, { n: p.maxCameras })}</div>
                 <div className="mt-6 flex items-baseline gap-1.5">
-                  <span className="font-display text-[46px] font-extrabold tracking-tight">{money(p.priceMonthly)}</span>
-                  <span className="text-sm text-fg-muted">{d.common.uzs}</span>
+                  <span className="font-display text-[46px] font-extrabold tracking-tight">{money(months === 12 ? yearPrice(p.priceMonthly, p.tier) : p.priceMonthly)}</span>
+                  <span className="text-sm text-fg-muted">{months === 12 ? f.bill.perYear : d.common.uzs}</span>
                 </div>
-                <div className="text-[12px] text-fg-dim">{d.common.perMonthLong}</div>
+                {months === 12 ? (
+                  <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+                    <span className="text-fg-dim">{fmt(f.bill.yearNote, { n: money(p.priceMonthly * 12) })}</span>
+                    <span className="chip chip-ok !h-6 !text-[11.5px] font-bold">{fmt(f.bill.save, { n: money(YEAR_OFF[p.tier]) })}</span>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-fg-dim">{d.common.perMonthLong}</div>
+                )}
                 {p.features.includes("nightVision") && (
                   // Night Vision — the top plan's headline feature, shown on its own
                   <div className="relative mt-6 overflow-hidden rounded-2xl border border-emerald-400/40 bg-[linear-gradient(135deg,rgba(16,185,129,.16),rgba(34,211,238,.08)_55%,rgba(124,92,255,.12))] p-4 shadow-[0_0_30px_-8px_rgba(16,185,129,.55)]">

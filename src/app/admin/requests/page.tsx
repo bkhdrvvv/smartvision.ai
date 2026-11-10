@@ -8,11 +8,11 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getDict } from "@/lib/i18n/server";
 import { ago, cn, money } from "@/lib/format";
-import { discounted } from "@/lib/payments";
+import { periodAmount } from "@/lib/billing";
 
 export default async function RequestsPage() {
   await requireAdmin();
-  const { d } = await getDict();
+  const { d, f } = await getDict();
   const rows = await db.subscription.findMany({ where: { status: { in: ["REQUESTED", "REJECTED"] } }, include: { organization: true, plan: true, coupon: true }, orderBy: { requestedAt: "desc" }, take: 100 });
   const r = d.dash.adminRequests;
   const trialSet = await trialUsedSet([...new Set(rows.map((s) => s.organizationId))]);
@@ -29,7 +29,7 @@ export default async function RequestsPage() {
                   <tr key={s.id}>
                     <td className="font-semibold">{s.organization.name}</td>
                     <td>{d.solutions[s.plan.service.toLowerCase() as "school"].name} · {d.pricing.tiers[s.plan.tier]}</td>
-                    <td className="font-semibold">{money(discounted(s.plan.priceMonthly, s.coupon?.percentOff))} {d.common.uzs}{s.coupon && <span className="ml-2 chip chip-violet">{s.coupon.code} −{s.coupon.percentOff}%</span>}</td>
+                    <td className="font-semibold">{money(periodAmount(s.plan.priceMonthly, s.plan.tier, s.months, s.coupon?.percentOff))} {d.common.uzs}{s.months === 12 && <span className="ml-2 chip chip-ok">{f.bill.yearly}</span>}{s.coupon && <span className="ml-2 chip chip-violet">{s.coupon.code} −{s.coupon.percentOff}%</span>}</td>
                     <td className="text-fg-muted">{ago(s.requestedAt, d)}</td>
                     <td><span className={cn("chip", chipFor(s.status))}>{d.dash.status[s.status]}</span></td>
                     <td className="text-right">

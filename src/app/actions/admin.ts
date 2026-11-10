@@ -5,7 +5,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { audit, requireAdmin } from "@/lib/auth";
-import { discounted, maskCard, nextReference } from "@/lib/payments";
+import { maskCard, nextReference } from "@/lib/payments";
+import { periodAmount, periodDays } from "@/lib/billing";
 import { getSettings, SETTING_DEFAULTS } from "@/lib/settings";
 import type { ActionResult } from "./customer";
 import { dictionaries, fmt, type Dict } from "@/lib/i18n";
@@ -64,8 +65,8 @@ export async function approveRequest(subId: string) {
     db.payment.create({
       data: {
         reference: await nextReference(), organizationId: sub.organizationId, subscriptionId: sub.id,
-        amount: discounted(sub.plan.priceMonthly, sub.coupon?.percentOff), status: "AWAITING_PAYMENT",
-        periodStart: start, periodEnd: new Date(start.getTime() + 30 * DAY), paidToCard: maskCard(s.paymentCard),
+        amount: periodAmount(sub.plan.priceMonthly, sub.plan.tier, sub.months, sub.coupon?.percentOff), status: "AWAITING_PAYMENT",
+        periodStart: start, periodEnd: new Date(start.getTime() + periodDays(sub.months) * DAY), paidToCard: maskCard(s.paymentCard),
       },
     }),
   ]);
@@ -213,9 +214,10 @@ export async function decidePayment(paymentId: string, decision: "approve" | "re
     const nowMs = Date.now();
     const curEnd = p.subscription.currentPeriodEnd?.getTime() ?? 0;
     const wasActive = p.subscription.status === "ACTIVE" && curEnd > nowMs;
-    // still running → add 30 days on top of the remaining days; expired / new → 30 days from approval
+    // still running → add the paid period (30 or 365 days) on top of the remaining days; expired / new → from approval
+    const span = p.periodEnd.getTime() - p.periodStart.getTime() > 60 * DAY ? 365 * DAY : 30 * DAY;
     const start = wasActive ? p.subscription.currentPeriodStart ?? new Date(nowMs) : new Date(nowMs);
-    const end = new Date((wasActive ? curEnd : nowMs) + 30 * DAY);
+    const end = new Date((wasActive ? curEnd : nowMs) + span);
     await db.$transaction(async (tx) => {
       await tx.payment.update({ where: { id: p.id }, data: { status: "APPROVED", reviewedAt: new Date(), reviewedById: admin.id, adminNote: null, periodStart: wasActive ? new Date(curEnd) : start, periodEnd: end } });
       // retire other active subscription of this org (upgrade path)

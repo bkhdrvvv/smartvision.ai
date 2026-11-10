@@ -199,6 +199,7 @@ model Subscription {
   status          SubscriptionStatus @default(REQUESTED)
   coupon          Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
   couponId        String?
+  months          Int                @default(1) // 1 = monthly, 12 = yearly
   requestedAt     DateTime           @default(now())
   approvedAt      DateTime?
   currentPeriodStart DateTime?

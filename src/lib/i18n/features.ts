@@ -377,6 +377,7 @@ const uz = {
     farmSave: "AI saqlab qolishi mumkin",
     farmNote: "Hisob taxminiy: AI tunda begona odamni, hududdan chiqqan va kamaygan hayvonni darhol xabar qiladi.",
   },
+  bill: { monthly: "Oylik", yearly: "Yillik", save: "−{n} so'm", perYear: "so'm / yil", yearNote: "12 oy uchun {n} so'm o'rniga", yearTotal: "Yiliga to'lov", period: "To'lov davri", yearBadge: "Yillik · 365 kun", hint: "Yillik to'lovda tarifga qarab 50 000 so'mgacha chegirma" },
   common: { saved: "Saqlandi", error: "Xatolik", back: "Orqaga", on: "Yoqiq", off: "O'chiq" },
   tg: {
     linkedUser: "✅ Telegram ulandi! Endi kamera ogohlantirishlari shu yerga keladi.\n\nUzish: /stop",
@@ -764,6 +765,7 @@ const ru: FeatureDict = {
     farmSave: "AI может сохранить",
     farmNote: "Расчёт примерный: AI сразу сообщает о постороннем ночью, о вышедших и пропавших животных.",
   },
+  bill: { monthly: "Помесячно", yearly: "За год", save: "−{n} сум", perYear: "сум / год", yearNote: "вместо {n} сум за 12 месяцев", yearTotal: "Оплата за год", period: "Период оплаты", yearBadge: "Год · 365 дней", hint: "При оплате за год — скидка до 50 000 сум в зависимости от тарифа" },
   common: { saved: "Сохранено", error: "Ошибка", back: "Назад", on: "Вкл.", off: "Выкл." },
   tg: {
     linkedUser: "✅ Telegram подключён! Теперь тревоги камер будут приходить сюда.\n\nОтключить: /stop",
@@ -1149,6 +1151,7 @@ const en: FeatureDict = {
     farmSave: "The AI can save",
     farmNote: "Rough estimate: the AI reports a stranger at night, animals leaving the pen or going missing at once.",
   },
+  bill: { monthly: "Monthly", yearly: "Yearly", save: "−{n} UZS", perYear: "UZS / year", yearNote: "instead of {n} UZS for 12 months", yearTotal: "Yearly payment", period: "Billing period", yearBadge: "Yearly · 365 days", hint: "Pay yearly and save up to 50,000 UZS, depending on the plan" },
   common: { saved: "Saved", error: "Error", back: "Back", on: "On", off: "Off" },
   tg: {
     linkedUser: "✅ Telegram connected! Camera alerts will arrive here now.\n\nDisconnect: /stop",

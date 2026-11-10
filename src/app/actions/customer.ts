@@ -11,6 +11,7 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n";
 import { getSettings } from "@/lib/settings";
 import { maskCard, nextReference } from "@/lib/payments";
+import { periodAmount, periodDays, toMonths } from "@/lib/billing";
 import { activateTrial, TRIAL_DAYS } from "@/lib/trial";
 import { notifyUsers, tf } from "@/lib/notify";
 import { z } from "zod";
@@ -90,6 +91,7 @@ export async function requestPlan(_: ActionResult, form: FormData): Promise<Acti
   const { d } = await getDict();
   const planId = String(form.get("planId") ?? "");
   const code = String(form.get("coupon") ?? "").trim().toUpperCase();
+  const months = toMonths(form.get("months"));
   const plan = await db.plan.findFirst({ where: { id: planId, active: true, service: u.organization.service } });
   if (!plan) return { error: d.common.error };
   let couponId: string | undefined;
@@ -107,7 +109,7 @@ export async function requestPlan(_: ActionResult, form: FormData): Promise<Acti
     } else return { error: d.dash.subscriptionPage.pendingApproval };
   }
   const sub = await db.subscription.create({
-    data: { organizationId: u.organization.id, planId: plan.id, couponId, status: "REQUESTED", history: { create: { status: "REQUESTED" } } },
+    data: { organizationId: u.organization.id, planId: plan.id, couponId, months, status: "REQUESTED", history: { create: { status: "REQUESTED" } } },
   });
   const admins = await db.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
   await notifyUsers(admins.map((a) => a.id), "SUBSCRIPTION", tf("newRequest", "newRequestBody", { o: u.organization.name, p: `${plan.service} · ${plan.tier}` }), "important", "/admin/requests");
@@ -160,7 +162,7 @@ export async function renewSubscription(): Promise<ActionResult> {
     const end = sub.currentPeriodEnd?.getTime() ?? 0;
     const start = new Date(Math.max(Date.now(), end));
     await db.payment.create({
-      data: { reference: await nextReference(), organizationId: u.organization.id, subscriptionId: sub.id, amount: sub.plan.priceMonthly, status: "AWAITING_PAYMENT", periodStart: start, periodEnd: new Date(start.getTime() + 30 * 86400000), paidToCard: maskCard(s.paymentCard) },
+      data: { reference: await nextReference(), organizationId: u.organization.id, subscriptionId: sub.id, amount: periodAmount(sub.plan.priceMonthly, sub.plan.tier, sub.months), status: "AWAITING_PAYMENT", periodStart: start, periodEnd: new Date(start.getTime() + periodDays(sub.months) * 86400000), paidToCard: maskCard(s.paymentCard) },
     });
   }
   revalidatePath("/dashboard", "layout");

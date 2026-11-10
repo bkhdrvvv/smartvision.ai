@@ -9,8 +9,8 @@ import { trialUsed } from "@/lib/trial";
 import { getSettings } from "@/lib/settings";
 import { getDict } from "@/lib/i18n/server";
 import { getPlans } from "@/lib/plans";
-import { discounted } from "@/lib/payments";
-import { intlLocale } from "@/lib/i18n";
+import { periodAmount, YEAR_OFF } from "@/lib/billing";
+import { fmt, intlLocale } from "@/lib/i18n";
 import { cn, longDate, money } from "@/lib/format";
 
 export async function generateMetadata() {
@@ -20,7 +20,7 @@ export async function generateMetadata() {
 
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
   const user = await requireCustomer();
-  const { d, locale } = await getDict();
+  const { d, f, locale } = await getDict();
   const org = user.organization;
   const { plan: pre } = await searchParams;
   const [sub, settings, allPlans] = await Promise.all([getLatestSubscription(org.id), getSettings(), getPlans()]);
@@ -58,12 +58,16 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                 </div>
                 <div className="mt-4 font-display text-[30px] font-extrabold tracking-tight">{d.pricing.tiers[sub.plan.tier]} · {sub.plan.maxCameras} {d.dash.menu.cameras.toLowerCase()}</div>
                 <div className="mt-1 flex justify-between text-fg-muted">
-                  <span>{d.dash.subscriptionPage.monthly}</span>
+                  <span>{sub.months === 12 ? f.bill.yearTotal : d.dash.subscriptionPage.monthly}</span>
                   <span className="font-bold text-fg">
-                    {/* the coupon applies to the first period only; renewals are charged the plan price */}
-                    {sub.coupon && !openPayment && !sub.currentPeriodEnd && <span className="mr-2 text-sm font-normal text-fg-dim line-through">{money(sub.plan.priceMonthly)}</span>}
-                    {money(openPayment?.amount ?? (sub.currentPeriodEnd ? sub.plan.priceMonthly : discounted(sub.plan.priceMonthly, sub.coupon?.percentOff)))} {d.common.uzs}
+                    {/* the coupon applies to the first month only; renewals are charged the plan price */}
+                    {sub.coupon && !openPayment && !sub.currentPeriodEnd && <span className="mr-2 text-sm font-normal text-fg-dim line-through">{money(periodAmount(sub.plan.priceMonthly, sub.plan.tier, sub.months))}</span>}
+                    {money(openPayment?.amount ?? periodAmount(sub.plan.priceMonthly, sub.plan.tier, sub.months, sub.currentPeriodEnd ? null : sub.coupon?.percentOff))} {d.common.uzs}
                   </span>
+                </div>
+                <div className="mt-1 flex justify-between text-fg-muted">
+                  <span>{f.bill.period}</span>
+                  <span className={cn("font-semibold", sub.months === 12 ? "text-ok-soft" : "text-fg")}>{sub.months === 12 ? `${f.bill.yearBadge} · ${fmt(f.bill.save, { n: money(YEAR_OFF[sub.plan.tier]) })}` : f.bill.monthly}</span>
                 </div>
                 {activeSub?.currentPeriodEnd && <div className="mt-2 text-[13px] text-fg-dim">{d.dash.renews.replace("{d}", longDate(activeSub.currentPeriodEnd, intlLocale[locale]))}</div>}
                 {isExpired && sub.currentPeriodEnd && (
