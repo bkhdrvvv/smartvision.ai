@@ -2,8 +2,6 @@ import "server-only";
 import { db } from "./db";
 import { fmt } from "./i18n";
 import { notifyUsers } from "./notify";
-import { telegramToOrg } from "./telegram";
-import { featureDicts } from "./i18n/features";
 import { deleteSnapshot } from "./storage";
 
 const DAY = 86400000;
@@ -48,7 +46,6 @@ export async function enforceSubscriptions(force = false) {
     await db.subscription.update({ where: { id: s.id }, data: { status: "EXPIRED", history: { create: { status: "EXPIRED" } } } });
     await notifyUsers(s.organization.users.map((u) => u.id), "SUBSCRIPTION", (d) => ({ title: d.dash.expiry.expiredTitle, body: d.dash.expiry.expiredBody }), "important", "/dashboard/subscription");
     await db.auditLog.create({ data: { action: "subscription.expired", target: s.id } });
-    await telegramToOrg(s.organizationId, (l) => featureDicts[l].more.subEnded).catch(() => {});
   }
 
   // 2. remind once per period
@@ -69,7 +66,6 @@ export async function enforceSubscriptions(force = false) {
       "important",
       "/dashboard/subscription",
     );
-    await telegramToOrg(s.organizationId, (l) => fmt(featureDicts[l].more.subEnding, { n: days })).catch(() => {});
   }
 }
 

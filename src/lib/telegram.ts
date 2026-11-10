@@ -61,15 +61,30 @@ export async function setBotToken(token: string | null): Promise<{ ok: true; use
   for (const [key, value] of [[TOKEN_KEY, token], [NAME_KEY, me.username]] as const)
     await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
   await call("deleteWebhook", {}, token); // polling mode
-  // the "/" menu in the chat
-  for (const [lang, l] of [["", "uz"], ["ru", "ru"], ["en", "en"]] as const) {
-    const t = featureDicts[l].x;
-    await call("setMyCommands", { commands: [{ command: "holat", description: t.tgCmdStatus }, { command: "rasm", description: t.tgCmdPhoto }, { command: "qoriqlash", description: t.tgCmdGuard }], ...(lang && { language_code: lang }) }, token);
-  }
+  await applyBotProfile(token);
   return { ok: true, username: me.username };
 }
 
 type Keyboard = { text: string; callback_data: string }[][];
+
+const PROFILE = {
+  "": { name: "SmartVision AI", short: "Kameralaringizdan AI ogohlantirishlar — rasm bilan, shu yerga.", about: "SMARTVISION AI — maktab, uy va ferma uchun sun'iy intellektli video kuzatuv.\n\nKamera xavfli narsani ko'rsa (begona odam, yong'in, yiqilish, taqiqlangan zona, notanish mashina) — rasm bilan shu yerga xabar keladi.\n\nUlash: saytda Sozlamalar → «Telegramni ulash».\nBuyruqlar: /holat · /rasm · /qoriqlash" },
+  ru: { name: "SmartVision AI", short: "AI-тревоги с ваших камер — с фото, прямо сюда.", about: "SMARTVISION AI — видеонаблюдение с искусственным интеллектом для школ, домов и ферм.\n\nКамера увидела опасность (посторонний, пожар, падение, запретная зона, чужая машина) — сюда придёт сообщение с фото.\n\nПодключение: на сайте Настройки → «Подключить Telegram».\nКоманды: /holat · /rasm · /qoriqlash" },
+  en: { name: "SmartVision AI", short: "AI alerts from your cameras — with a photo, right here.", about: "SMARTVISION AI — AI video monitoring for schools, homes and farms.\n\nWhen a camera sees danger (stranger, fire, fall, forbidden zone, unknown car) you get a message with a photo here.\n\nConnect: on the site Settings → “Connect Telegram”.\nCommands: /holat · /rasm · /qoriqlash" },
+} as const;
+
+/** Name, descriptions and the "/" command menu in uz (default), ru and en. */
+export async function applyBotProfile(token?: string | null) {
+  for (const [lang, l] of [["", "uz"], ["ru", "ru"], ["en", "en"]] as const) {
+    const p = PROFILE[lang];
+    const lc = lang ? { language_code: lang } : {};
+    const t = featureDicts[l].x;
+    await call("setMyName", { name: p.name, ...lc }, token);
+    await call("setMyShortDescription", { short_description: p.short, ...lc }, token);
+    await call("setMyDescription", { description: p.about, ...lc }, token);
+    await call("setMyCommands", { commands: [{ command: "holat", description: t.tgCmdStatus }, { command: "rasm", description: t.tgCmdPhoto }, { command: "qoriqlash", description: t.tgCmdGuard }], ...lc }, token);
+  }
+}
 
 export async function sendText(chatId: string, text: string, keyboard?: Keyboard) {
   return call("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true, ...(keyboard && { reply_markup: { inline_keyboard: keyboard } }) });
@@ -170,6 +185,7 @@ async function handleCommand(chat: string, cmd: string, lang: string) {
   const l = ((user && isLocale(user.locale) ? user.locale : lang === "ru" || lang === "en" ? lang : "uz") as Locale);
   const x = featureDicts[l].x;
   if (cmd === "/help") return sendText(chat, x.tgHelp);
+  if (user?.role === "ADMIN") return adminCommand(chat, cmd, l);
   if (!user?.organization) return sendText(chat, x.tgNotLinked);
   const org = user.organization;
   const cams = await db.camera.findMany({ where: { organizationId: org.id }, orderBy: { code: "asc" } });
@@ -203,6 +219,51 @@ async function handleCommand(chat: string, cmd: string, lang: string) {
   ]);
 }
 
+/* ───── the platform admin: /holat = whole platform, /rasm = latest frames of all customers ───── */
+const ADMIN_T = {
+  uz: { title: "📊 SMARTVISION AI — platforma holati", customers: "Mijozlar", active: "Faol obunalar", cams: "Kameralar", online: "onlayn", alerts: "Bugungi ogohlantirishlar", payments: "Tekshiruv kutayotgan to'lovlar", requests: "Yangi arizalar", tickets: "Javob kutayotgan murojaatlar", guard: "Qo'riqlash rejimi har bir mijozda alohida — mijoz uni o'z Telegramidan /qoriqlash bilan boshqaradi.", noFrame: "Hozir hech bir kameradan rasm yo'q (Edge agentlar ishlamayapti)." },
+  ru: { title: "📊 SMARTVISION AI — состояние платформы", customers: "Клиенты", active: "Активные подписки", cams: "Камеры", online: "онлайн", alerts: "Тревоги за сегодня", payments: "Платежи на проверке", requests: "Новые заявки", tickets: "Обращения без ответа", guard: "Режим охраны у каждого клиента свой — клиент управляет им командой /qoriqlash.", noFrame: "Сейчас нет кадров ни с одной камеры (Edge агенты не работают)." },
+  en: { title: "📊 SMARTVISION AI — platform status", customers: "Customers", active: "Active subscriptions", cams: "Cameras", online: "online", alerts: "Alerts today", payments: "Payments to review", requests: "New requests", tickets: "Tickets waiting", guard: "Guard mode belongs to each customer — they control it with /qoriqlash.", noFrame: "No picture from any camera right now (Edge agents are not running)." },
+};
+
+async function adminCommand(chat: string, cmd: string, l: Locale) {
+  const a = ADMIN_T[l];
+  if (cmd === "/qoriqlash") return sendText(chat, a.guard);
+  const cams = await db.camera.findMany({ include: { organization: { select: { name: true } } }, orderBy: { lastSeenAt: "desc" } });
+  if (cmd === "/rasm") {
+    const { getFrame } = await import("./relay");
+    let sent = 0;
+    for (const c of cams) {
+      const f = getFrame(c.id);
+      if (sent < 6 && f && f.jpeg.length > 100 && Date.now() - f.at < 30_000) {
+        await sendPhoto(chat, f.jpeg, `📷 ${c.organization.name} · ${c.name}`);
+        sent++;
+      }
+    }
+    return sent ? null : sendText(chat, a.noFrame);
+  }
+  const start = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tashkent" }) + "T00:00:00+05:00");
+  const [orgs, active, alerts, pays, reqs, tickets] = await Promise.all([
+    db.organization.count({ where: { demo: false } }),
+    db.subscription.count({ where: { status: "ACTIVE", currentPeriodEnd: { gt: new Date() } } }),
+    db.event.count({ where: { occurredAt: { gte: start }, severity: { in: ["WARNING", "CRITICAL"] } } }),
+    db.payment.count({ where: { status: { in: ["RECEIPT_SUBMITTED", "UNDER_REVIEW"] } } }),
+    db.subscription.count({ where: { status: "REQUESTED" } }),
+    db.ticket.count({ where: { status: "OPEN" } }),
+  ]);
+  const on = cams.filter((c) => c.status !== "OFFLINE" && c.lastSeenAt && Date.now() - c.lastSeenAt.getTime() < 60_000).length;
+  return sendText(chat, [
+    a.title, "",
+    `👥 ${a.customers}: ${orgs}`,
+    `✅ ${a.active}: ${active}`,
+    `📷 ${a.cams}: ${cams.length} (${on} ${a.online})`,
+    `⚠️ ${a.alerts}: ${alerts}`,
+    `💳 ${a.payments}: ${pays}`,
+    `📝 ${a.requests}: ${reqs}`,
+    `💬 ${a.tickets}: ${tickets}`,
+  ].join("\n"));
+}
+
 /* ───── buttons: under alerts (✅ all good / 👎 false alarm) and guard mode ───── */
 async function handleButton(q: NonNullable<Update["callback_query"]>) {
   const chat = String(q.message?.chat.id ?? "");
@@ -210,16 +271,18 @@ async function handleButton(q: NonNullable<Update["callback_query"]>) {
   const user = chat ? await db.user.findFirst({ where: { telegramChatId: chat } }) : null;
   const l = (user && isLocale(user.locale) ? user.locale : "uz") as Locale;
   const x = featureDicts[l].x;
-  if (!user?.organizationId) return answer(x.tgNotLinked);
+  const isAdmin = user?.role === "ADMIN";
+  if (!user || (!user.organizationId && !isAdmin)) return answer(x.tgNotLinked);
   const [kind, id] = (q.data ?? "").split(":", 2);
+  if (isAdmin && kind === "g") return answer(ADMIN_T[l].guard);
   if (kind === "g" && ["auto", "custom", "always", "off"].includes(id) && user.orgRole !== "VIEWER") {
-    await db.organization.update({ where: { id: user.organizationId }, data: { guardMode: id } });
+    await db.organization.update({ where: { id: user.organizationId! }, data: { guardMode: id } });
     await db.auditLog.create({ data: { userId: user.id, action: "org.guard.telegram", target: user.organizationId, meta: { mode: id } } });
     await answer(fmt(x.tgGuardSet, { m: GUARD_LABEL(l, id) }));
     return sendText(chat, fmt(x.tgGuardSet, { m: GUARD_LABEL(l, id) }));
   }
   if ((kind === "ok" || kind === "fa") && id && user.orgRole !== "VIEWER") {
-    const e = await db.event.findFirst({ where: { id, organizationId: user.organizationId }, include: { camera: true } });
+    const e = await db.event.findFirst({ where: { id, ...(isAdmin ? {} : { organizationId: user.organizationId! }) }, include: { camera: true } });
     if (!e) return answer();
     if (kind === "ok") await db.event.update({ where: { id: e.id }, data: { resolved: true } });
     else if (!e.falseAlarm) {

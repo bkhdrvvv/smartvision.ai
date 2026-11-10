@@ -98,9 +98,18 @@ type Text = (d: Dict) => { title: string; body: string };
  */
 export async function notifyUsers(userIds: string[], kind: NotificationKind, text: Text, level: "info" | "important" | "critical" = "info", link?: string) {
   if (!userIds.length) return;
-  const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, email: true, phone: true, locale: true, notifyEmail: true, notifySms: true, emailVerifiedAt: true } });
+  const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, email: true, phone: true, locale: true, notifyEmail: true, notifySms: true, emailVerifiedAt: true, telegramChatId: true } });
   const dictOf = (l: string) => dictionaries[(isLocale(l) ? l : "uz") as Locale];
   await db.notification.createMany({ data: users.map((u) => ({ userId: u.id, kind, ...text(dictOf(u.locale)) })) });
+  // Telegram for every level (camera alerts are sent separately with their photo and buttons — not repeated here)
+  if (kind !== "EVENT" && users.some((u) => u.telegramChatId)) {
+    const { sendText } = await import("./telegram");
+    for (const u of users) {
+      if (!u.telegramChatId) continue;
+      const t = text(dictOf(u.locale));
+      await sendText(u.telegramChatId, `🔔 ${t.title}\n${t.body}${link ? `\n${siteUrl(link)}` : ""}`).catch(() => {});
+    }
+  }
   if (level === "info") return;
   for (const u of users) {
     const d = dictOf(u.locale);
