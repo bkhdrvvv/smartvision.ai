@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Megaphone } from "lucide-react";
 import { getPromo } from "@/lib/promo";
 import { getDict } from "@/lib/i18n/server";
+import { Countdown } from "./Countdown";
 
 /** Thin promo strip at the very top (text set by the admin; hidden when empty or expired). */
 export async function PromoBar({ dash = false }: { dash?: boolean }) {
@@ -12,6 +13,7 @@ export async function PromoBar({ dash = false }: { dash?: boolean }) {
     <>
       <Megaphone size={15} className="shrink-0" />
       <span className="min-w-0 truncate">{p.text}</span>
+      {p.until && <Countdown until={p.until} />}
       {p.link && <span className="shrink-0 font-semibold underline underline-offset-2">{f.promo.more} →</span>}
     </>
   );

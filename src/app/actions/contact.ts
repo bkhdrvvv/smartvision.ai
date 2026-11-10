@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { contactSchema } from "@/lib/validators";
 import { getDict } from "@/lib/i18n/server";
 import { clientIp, hit } from "@/lib/ratelimit";
+import { notifyUsers } from "@/lib/notify";
 
 export type ContactState = { ok?: boolean; error?: string } | undefined;
 
@@ -21,5 +22,8 @@ export async function contactAction(_: ContactState, form: FormData): Promise<Co
   if (!parsed.success) return { error: d.common.error };
   const v = parsed.data;
   await db.contactMessage.create({ data: { name: v.name, phone: v.phone, email: v.email || null, service: v.service ?? null, message: v.message } });
+  // admins: in-app + Telegram — a lead waiting for a call must not wait
+  const admins = await db.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+  await notifyUsers(admins.map((a) => a.id), "SYSTEM", () => ({ title: `📞 ${v.name} · ${v.phone}`, body: `${v.service ?? ""} ${v.message}`.trim().slice(0, 500) }), "important", "/admin/messages").catch(() => {});
   return { ok: true };
 }

@@ -7,6 +7,7 @@ import { Cta, Faq } from "@/components/site/FaqCta";
 import { getPlans, minPrices } from "@/lib/plans";
 import { getSession } from "@/lib/auth";
 import { ReviewsSection } from "@/components/site/ReviewsSection";
+import { EngageSection } from "@/components/site/EngageSection";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function HomePage() {
       <Ecosystem />
       <Features />
       <Pricing plans={plans} authed={!!session} />
+      <EngageSection />
       <ReviewsSection />
       <Faq />
       <Cta />

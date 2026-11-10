@@ -27,10 +27,11 @@ export function Header({ authed, promo }: { authed: "CUSTOMER" | "ADMIN" | null;
   const links = [
     { href: "/", label: d.nav.home },
     { href: "/#solutions", label: d.nav.solutions },
-    { href: "/#how", label: d.nav.how },
+    { href: "/#how", label: d.nav.how, wide: true },
     { href: "/pricing", label: d.nav.pricing },
     { href: "/demo", label: f.x.demoMenu },
-    { href: "/about", label: d.nav.about },
+    { href: "/try", label: f.y.tryMenu },
+    { href: "/about", label: d.nav.about, wide: true },
     { href: "/contact", label: d.nav.contact },
   ];
   const dash = authed === "ADMIN" ? "/admin" : "/dashboard";
@@ -52,7 +53,7 @@ export function Header({ authed, promo }: { authed: "CUSTOMER" | "ADMIN" | null;
               <Link
                 key={l.href}
                 href={l.href}
-                className={cn("rounded-lg px-3 py-2 text-[13.5px] transition-colors", active ? "text-fg" : "text-fg-muted hover:text-fg")}
+                className={cn("rounded-lg px-2.5 py-2 text-[13.5px] transition-colors", "wide" in l && l.wide && "hidden 2xl:inline-block", active ? "text-fg" : "text-fg-muted hover:text-fg")}
               >
                 {l.label}
               </Link>

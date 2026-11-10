@@ -11,6 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/solutions/home", 0.9, "monthly"],
     ["/solutions/farm", 0.9, "monthly"],
     ["/demo", 0.8, "monthly"],
+    ["/try", 0.8, "monthly"],
+    ["/test", 0.7, "monthly"],
     ["/about", 0.6, "monthly"],
     ["/contact", 0.6, "monthly"],
     ["/support", 0.5, "monthly"],

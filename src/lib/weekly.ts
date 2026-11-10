@@ -26,7 +26,13 @@ export async function weeklyReports(now = new Date()) {
     const total = sev.reduce((a, x) => a + x._count._all, 0);
     if (!total && !o.cameras.length) continue;
     const vars = { o: o.name, p: period, e: total, w: n("WARNING"), c: n("CRITICAL"), k: o.cameras.length, on: o.cameras.filter((c) => c.status !== "OFFLINE").length };
-    const text = (l: Locale) => fmt(featureDicts[l].tg.weekly, vars);
+    // week highlights: people, cars and the busiest day
+    const rows = await db.event.findMany({ where: { organizationId: o.id, occurredAt: { gte: from }, type: { in: ["PERSON", "ENTRY", "VEHICLE"] } }, select: { type: true, occurredAt: true }, take: 50_000 });
+    const perDay = new Array(7).fill(0);
+    for (const r of rows) perDay[new Date(r.occurredAt.toLocaleString("en-US", { timeZone: "Asia/Tashkent" })).getDay()]++;
+    const busiest = perDay.indexOf(Math.max(...perDay));
+    const people = rows.filter((r) => r.type !== "VEHICLE").length, cars = rows.length - people;
+    const text = (l: Locale) => fmt(featureDicts[l].tg.weekly, vars) + (rows.length ? fmt(featureDicts[l].y.weeklyExtra, { p: people, v: cars, d: featureDicts[l].y.days[busiest] }) : "");
     await telegramToOrg(o.id, text).catch(() => {});
     for (const u of o.users) {
       if (!u.notifyEmail || !u.emailVerifiedAt) continue;

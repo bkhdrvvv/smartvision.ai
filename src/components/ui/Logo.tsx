@@ -10,7 +10,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
 
 export function Logo({ href = "/", size = 34 }: { href?: string; size?: number }) {
   return (
-    <Link href={href} className="flex items-center gap-3 font-bold tracking-wide" aria-label="SMARTVISION AI">
+    <Link href={href} className="flex shrink-0 items-center gap-3 whitespace-nowrap font-bold tracking-wide" aria-label="SMARTVISION AI">
       <LogoMark size={size} />
       <span className="text-[15px] sm:text-[17px]">
         SMARTVISION <span className="bg-[linear-gradient(90deg,#22d3ee,#a78bfa)] bg-clip-text font-semibold text-transparent">AI</span>

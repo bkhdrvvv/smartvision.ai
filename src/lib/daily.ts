@@ -61,6 +61,31 @@ export async function absentReports(now = new Date()) {
   return `absent lists ${sent}`;
 }
 
+/**
+ * On the 1st of the month (from 10:00): every parent who linked Telegram gets last month's attendance of their child —
+ * days present, times late, school days absent (Mon–Sat).
+ */
+export async function parentMonthly(now = new Date()) {
+  const t = tashkentNow(now);
+  const [Y, M, D] = t.day.split("-").map(Number);
+  if (D !== 1 || t.min < 10 * 60) return "not the 1st";
+  if (!(await once(`parents:${Y}-${M}`))) return "already sent";
+  const first = new Date(Date.UTC(M === 1 ? Y - 1 : Y, M === 1 ? 11 : M - 2, 1));
+  const days: string[] = [];
+  for (let d = new Date(first); d.getUTCMonth() === first.getUTCMonth(); d = new Date(d.getTime() + 86400_000)) if (d.getUTCDay() !== 0) days.push(d.toISOString().slice(0, 10));
+  const monthName = (l: Locale) => first.toLocaleDateString({ uz: "uz-UZ", ru: "ru-RU", en: "en-US" }[l], { month: "long", year: "numeric", timeZone: "UTC" });
+  const kids = await db.student.findMany({ where: { kind: "STUDENT", parentChats: { isEmpty: false } }, include: { organization: { select: { schoolStart: true, blockedAt: true } }, attendance: { where: { day: { in: days } } } } });
+  let sent = 0;
+  for (const k of kids) {
+    if (k.organization.blockedAt) continue;
+    const late = k.attendance.filter((a) => hm(a.firstSeenAt) > k.organization.schoolStart).length;
+    const text = fmt(featureDicts.uz.y.parentMonthly, { n: k.name, m: monthName("uz"), a: k.attendance.length, l: late, x: Math.max(0, days.length - k.attendance.length) });
+    for (const chat of k.parentChats) await sendText(chat, text).catch(() => {});
+    sent++;
+  }
+  return `parents ${sent}`;
+}
+
 /** Every evening at 20:00: a short "how was today" message on Telegram for customers who keep it on. */
 export async function dailySummaries(now = new Date()) {
   const t = tashkentNow(now);

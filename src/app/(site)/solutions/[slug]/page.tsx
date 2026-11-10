@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FarmCalc, SchoolStory } from "@/components/site/Engage";
 import { notFound } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
 import { ModelViewer } from "@/components/site/ModelViewer";
@@ -60,6 +61,8 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
           />
         </div>
       </section>
+      {k === "school" && <section className="px-5 py-16"><SchoolStory /></section>}
+      {k === "farm" && <section className="px-5 py-16"><FarmCalc planYear={(plans.find((p) => p.service === "FARM" && p.tier === "STANDARD")?.priceMonthly ?? 150000) * 12} /></section>}
       <HowItWorks />
       <Pricing plans={plans} authed={!!session} initial={MAP[k]} />
     </>
