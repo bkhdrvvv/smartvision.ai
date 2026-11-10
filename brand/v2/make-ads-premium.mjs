@@ -84,6 +84,20 @@ const story = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" w
   <rect width="1080" height="1920" filter="url(#grain)"/>
 </svg>`;
 
+// link preview (Telegram, Facebook, Google): 1200×630
+const og = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">${defs}
+  <rect width="1200" height="630" fill="url(#vig)"/>
+  ${shutter(330, 315, 190)}
+  <text x="640" y="190" ${F} font-size="22" font-weight="600" letter-spacing="8" fill="#e7ebf3">SMARTVISION<tspan fill="url(#word)"> AI</tspan></text>
+  <text ${F} font-size="66" letter-spacing="-1">
+    <tspan x="636" y="290" font-weight="300" fill="#fff">Koʻradi. Tushunadi.</tspan>
+    <tspan x="636" y="372" font-weight="700" fill="url(#word)">Ogohlantiradi.</tspan>
+  </text>
+  <text x="640" y="430" ${F} font-size="24" fill="#8a93a8">Maktab, uy va ferma uchun aqlli video kuzatuv</text>
+  ${pill(640, 470, 330, "globe", C.site, "#22d3ee", 60)}
+  <rect width="1200" height="630" filter="url(#grain)"/>
+</svg>`;
+writeFileSync(join(out, "og-1200x630.svg"), og);
 writeFileSync(join(out, "premium-post-1080x1350.svg"), post);
 writeFileSync(join(out, "premium-story-1080x1920.svg"), story);
 console.log("ok");

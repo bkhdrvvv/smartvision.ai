@@ -12,6 +12,7 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt, intlLocale } from "@/lib/i18n";
 import { ago, daysLeft, eventTime, longDate, money, shortDate } from "@/lib/format";
 import { SafetyLight } from "@/components/dash/Insights";
+import { Onboarding } from "@/components/dash/Onboarding";
 
 const RANGES = { "7d": 7, "14d": 14, "30d": 30, "90d": 90 } as const;
 
@@ -71,6 +72,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         }
       />
       <PageBody>
+        <Onboarding user={{ id: user.id, emailVerifiedAt: user.emailVerifiedAt, telegramChatId: user.telegramChatId, organizationId: org.id }} />
         <SafetyLight orgId={org.id} />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
           <KpiCard icon={Cctv} tint="#5b9dff" value={cams.length} label={d.dash.kpi.totalCameras} foot={fmt(d.dash.kpi.ofAllowed, { n: sub?.plan.maxCameras ?? 0 })}>

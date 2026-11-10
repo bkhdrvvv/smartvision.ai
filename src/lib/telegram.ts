@@ -117,13 +117,30 @@ type Update = {
   update_id: number;
   message?: { chat: { id: number; type: string }; from?: { first_name?: string; username?: string; language_code?: string }; text?: string };
   callback_query?: { id: string; data?: string; message?: { chat: { id: number }; message_id: number }; from?: { language_code?: string } };
+  my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status: string } };
 };
+
+/* ───── privacy: the bot only talks to people who linked it from the site ───── */
+const spam = new Map<string, number[]>();
+/** max 15 messages a minute per chat; more → ignored */
+function flooding(chat: string) {
+  const now = Date.now();
+  const list = (spam.get(chat) ?? []).filter((t) => now - t < 60_000);
+  list.push(now);
+  spam.set(chat, list);
+  if (spam.size > 5000) spam.clear();
+  return list.length > 15;
+}
+async function isKnownChat(chat: string) {
+  if (await db.user.findFirst({ where: { telegramChatId: chat }, select: { id: true } })) return true;
+  return !!(await db.student.findFirst({ where: { parentChats: { has: chat } }, select: { id: true } }));
+}
 
 /** Called every few seconds; handles /start and /stop. */
 export async function pollUpdates() {
   if (!(await botToken())) return 0;
   const off = Number((await db.setting.findUnique({ where: { key: OFFSET_KEY } }))?.value) || 0;
-  const ups = await call<Update[]>("getUpdates", { offset: off, timeout: 0, allowed_updates: ["message", "callback_query"] });
+  const ups = await call<Update[]>("getUpdates", { offset: off, timeout: 0, allowed_updates: ["message", "callback_query", "my_chat_member"] });
   if (!ups?.length) return 0;
   for (const u of ups) {
     try {
@@ -138,14 +155,36 @@ export async function pollUpdates() {
 }
 
 async function handle(u: Update) {
-  if (u.callback_query) return handleButton(u.callback_query);
+  // added to a group / channel → leave at once: alerts with camera photos are only for private chats
+  const mc = u.my_chat_member;
+  if (mc && mc.chat.type !== "private" && ["member", "administrator"].includes(mc.new_chat_member?.status ?? "")) {
+    await call("leaveChat", { chat_id: mc.chat.id });
+    return;
+  }
+  if (u.callback_query) {
+    const c = String(u.callback_query.message?.chat.id ?? "");
+    if (!c || flooding(c) || !(await isKnownChat(c))) return call("answerCallbackQuery", { callback_query_id: u.callback_query.id });
+    return handleButton(u.callback_query);
+  }
   const m = u.message;
-  if (!m?.text || m.chat.type !== "private") return;
+  if (!m) return;
+  if (m.chat.type !== "private") return call("leaveChat", { chat_id: m.chat.id });
+  if (!m.text) return;
   const chat = String(m.chat.id);
+  if (flooding(chat)) return;
   const lang = (m.from?.language_code ?? "uz").slice(0, 2);
   const t = fd(lang === "ru" || lang === "en" ? lang : "uz").tg;
   const [cmd0, arg] = m.text.trim().split(/\s+/, 2);
   const cmd = cmd0.split("@")[0].toLowerCase();
+  const known = await isKnownChat(chat);
+  // a stranger only gets one short hello a day — no commands, no data
+  if (!known && !(cmd === "/start" && arg)) {
+    const key = `tghello:${chat}`;
+    const last = await db.setting.findUnique({ where: { key } });
+    if (last && Date.now() - Number(last.value) < 86400_000) return;
+    await db.setting.upsert({ where: { key }, create: { key, value: String(Date.now()) }, update: { value: String(Date.now()) } });
+    return sendText(chat, t.hello);
+  }
   if (cmd === "/holat" || cmd === "/rasm" || cmd === "/qoriqlash" || cmd === "/help") return handleCommand(chat, cmd, lang);
 
   if (cmd === "/stop") {
