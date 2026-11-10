@@ -1,8 +1,11 @@
 import "server-only";
 import { db } from "./db";
 import { featureDicts } from "./i18n/features";
-import { fmt, isLocale, type Locale } from "./i18n";
+import { dictionaries, fmt, isLocale, type Dict, type Locale } from "./i18n";
 import { sendText, telegramToOrg } from "./telegram";
+import { notifyUsers } from "./notify";
+
+const localeOf = (d: Dict) => (Object.entries(dictionaries).find(([, v]) => v === d)?.[0] ?? "uz") as Locale;
 
 /** Tashkent wall clock: { day "YYYY-MM-DD", minutes since midnight, weekday 0=Sunday } */
 export function tashkentNow(now = new Date()) {
@@ -84,6 +87,46 @@ export async function parentMonthly(now = new Date()) {
     sent++;
   }
   return `parents ${sent}`;
+}
+
+/**
+ * Holidays (New Year, 8 March, Navruz, Independence Day, Teachers' Day) from 10:00: a 15% coupon valid 3 days,
+ * sent to every customer owner (in-app + Telegram). Once per holiday.
+ */
+export async function holidayCoupons(now = new Date()) {
+  const t = tashkentNow(now);
+  const md = t.day.slice(5);
+  if (!(md in featureDicts.uz.z.holidays) || t.min < 10 * 60) return "no holiday";
+  if (!(await once(`holiday:${t.day}`))) return "already sent";
+  const code = `BAYRAM${t.day.slice(2, 4)}${md.replace("-", "")}`; // e.g. BAYRAM260321
+  const expiresAt = new Date(dayStart(t.day).getTime() + 3 * 86400_000 - 1000);
+  await db.coupon.upsert({ where: { code }, create: { code, percentOff: 15, expiresAt }, update: { percentOff: 15, active: true, expiresAt } });
+  const owners = await db.user.findMany({ where: { role: "CUSTOMER", orgRole: "OWNER", organization: { blockedAt: null, demo: false } }, select: { id: true } });
+  await notifyUsers(owners.map((u) => u.id), "SUBSCRIPTION", (d) => {
+    const z = featureDicts[localeOf(d)].z;
+    return { title: fmt(z.holidayTitle, { h: z.holidays[md as keyof typeof z.holidays] }), body: fmt(z.holidayBody, { c: code }) };
+  }, "info", "/dashboard/subscription");
+  return `holiday ${code} → ${owners.length}`;
+}
+
+/** 30 days after the first paid (or trial) start: one "rate us" request, unless the customer already wrote a review. */
+export async function askReviews(now = new Date()) {
+  const cutoff = new Date(now.getTime() - 30 * 86400_000);
+  const orgs = await db.organization.findMany({
+    where: { blockedAt: null, demo: false, reviews: { none: {} }, payments: { some: { status: "APPROVED", reviewedAt: { lte: cutoff } } } },
+    select: { id: true, users: { where: { orgRole: "OWNER" }, select: { id: true } } },
+    take: 50,
+  });
+  let n = 0;
+  for (const o of orgs) {
+    if (!(await once(`askreview:${o.id}`))) continue;
+    await notifyUsers(o.users.map((u) => u.id), "SYSTEM", (d) => {
+      const z = featureDicts[localeOf(d)].z;
+      return { title: z.reviewTitle, body: z.reviewBody };
+    }, "info", "/dashboard/support");
+    n++;
+  }
+  return `review asks ${n}`;
 }
 
 /** Every evening at 20:00: a short "how was today" message on Telegram for customers who keep it on. */

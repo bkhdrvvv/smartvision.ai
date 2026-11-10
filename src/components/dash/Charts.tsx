@@ -21,7 +21,7 @@ export function AreaChart({ data, labels }: { data: Pt[]; labels: { a: string; b
   const id = useId();
   const W = 900, H = 260, P = { l: 36, r: 12, t: 16, b: 30 };
   // "nice" axis: max is a multiple of 4 steps so labels are whole numbers (0, 5, 10, 15, 20 …)
-  const raw = Math.max(4, ...data.map((d) => d.a));
+  const raw = Math.max(4, ...data.map((d) => Math.max(d.a, d.b)));
   const step = [1, 2, 5, 10, 20, 25, 50, 100, 250, 500, 1000, 2500, 5000].find((s) => s * 4 >= raw) ?? Math.ceil(raw / 4);
   const max = step * 4;
   const [hover, setHover] = useState<number | null>(null);

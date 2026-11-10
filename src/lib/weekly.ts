@@ -32,7 +32,12 @@ export async function weeklyReports(now = new Date()) {
     for (const r of rows) perDay[new Date(r.occurredAt.toLocaleString("en-US", { timeZone: "Asia/Tashkent" })).getDay()]++;
     const busiest = perDay.indexOf(Math.max(...perDay));
     const people = rows.filter((r) => r.type !== "VEHICLE").length, cars = rows.length - people;
-    const text = (l: Locale) => fmt(featureDicts[l].tg.weekly, vars) + (rows.length ? fmt(featureDicts[l].y.weeklyExtra, { p: people, v: cars, d: featureDicts[l].y.days[busiest] }) : "");
+    // camera health: which cameras dropped out / were covered most often this week
+    const drops = await db.event.groupBy({ by: ["cameraId"], where: { organizationId: o.id, occurredAt: { gte: from }, type: { in: ["CAMERA_STATUS", "CAMERA_HEALTH", "TAMPER"] }, cameraId: { not: null } }, _count: { _all: true } });
+    const names = new Map((await db.camera.findMany({ where: { id: { in: drops.map((x) => x.cameraId!) } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]));
+    const worst = drops.sort((a, b) => b._count._all - a._count._all).slice(0, 3).map((x) => `${names.get(x.cameraId!) ?? "?"} (${x._count._all})`).join(", ");
+    const health = (l: Locale) => (!o.cameras.length ? "" : worst ? fmt(featureDicts[l].z.camHealth, { l: worst }) : featureDicts[l].z.camHealthOk);
+    const text = (l: Locale) => fmt(featureDicts[l].tg.weekly, vars) + (rows.length ? fmt(featureDicts[l].y.weeklyExtra, { p: people, v: cars, d: featureDicts[l].y.days[busiest] }) : "") + health(l);
     await telegramToOrg(o.id, text).catch(() => {});
     for (const u of o.users) {
       if (!u.notifyEmail || !u.emailVerifiedAt) continue;

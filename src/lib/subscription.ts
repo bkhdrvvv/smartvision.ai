@@ -1,6 +1,11 @@
 import "server-only";
 import { db } from "./db";
-import { fmt } from "./i18n";
+import { dictionaries, fmt, type Dict, type Locale } from "./i18n";
+import { featureDicts } from "./i18n/features";
+import { YEAR_OFF } from "./billing";
+import { money } from "./format";
+
+const localeOf = (d: Dict) => (Object.entries(dictionaries).find(([, v]) => v === d)?.[0] ?? "uz") as Locale;
 import { notifyUsers } from "./notify";
 import { deleteSnapshot } from "./storage";
 
@@ -62,7 +67,11 @@ export async function enforceSubscriptions(force = false) {
     await notifyUsers(
       s.organization.users.map((u) => u.id),
       "SUBSCRIPTION",
-      (d) => ({ title: d.dash.expiry.endingTitle, body: fmt(d.dash.expiry.endingBody, { p: d.pricing.tiers[s.plan.tier], n: days }) }),
+      (d) => ({
+        title: d.dash.expiry.endingTitle,
+        // monthly customers also get the "go yearly and save" offer
+        body: fmt(d.dash.expiry.endingBody, { p: d.pricing.tiers[s.plan.tier], n: days }) + (s.months === 12 ? "" : fmt(featureDicts[localeOf(d)].z.upsell, { n: money(YEAR_OFF[s.plan.tier]) })),
+      }),
       "important",
       "/dashboard/subscription",
     );

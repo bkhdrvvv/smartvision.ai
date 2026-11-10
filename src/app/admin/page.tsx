@@ -12,7 +12,7 @@ import { ago, cn, money, shortDate } from "@/lib/format";
 
 export default async function AdminOverview() {
   await requireAdmin();
-  const { d, locale } = await getDict();
+  const { d, f, locale } = await getDict();
   const since = new Date(Date.now() - 5 * 60000);
   const [orgs, active, cams, devices, devOnline, requests, messages, approved] = await Promise.all([
     db.organization.count(),
@@ -22,11 +22,17 @@ export default async function AdminOverview() {
     db.edgeDevice.count({ where: { lastHeartbeat: { gte: since } } }),
     db.subscription.findMany({ where: { status: { in: ["REQUESTED", "AWAITING_PAYMENT", "RECEIPT_SUBMITTED", "UNDER_REVIEW"] } }, include: { organization: true, plan: true }, orderBy: { updatedAt: "desc" }, take: 6 }),
     db.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 4 }),
-    db.payment.findMany({ where: { status: "APPROVED", reviewedAt: { gte: new Date(Date.now() - 180 * 86400000) } }, select: { amount: true, reviewedAt: true } }),
+    db.payment.findMany({ where: { status: "APPROVED", reviewedAt: { gte: new Date(Date.now() - 180 * 86400000) } }, select: { amount: true, reviewedAt: true, periodStart: true, periodEnd: true } }),
   ]);
   // revenue per month (last 6)
   const months = Array.from({ length: 6 }, (_, i) => { const x = new Date(); x.setDate(1); x.setMonth(x.getMonth() - (5 - i)); return x; });
-  const revenue = months.map((mo) => ({ label: mo.toLocaleDateString(intlLocale[locale], { month: "short" }), a: Math.round(approved.filter((p) => p.reviewedAt && p.reviewedAt.getMonth() === mo.getMonth() && p.reviewedAt.getFullYear() === mo.getFullYear()).reduce((s, p) => s + p.amount, 0) / 1000), b: 0 }));
+  // a = monthly payments, b = yearly payments (365-day periods), in thousands
+  const isYear = (p: (typeof approved)[number]) => p.periodEnd.getTime() - p.periodStart.getTime() > 60 * 86400000;
+  const revenue = months.map((mo) => {
+    const inMonth = approved.filter((p) => p.reviewedAt && p.reviewedAt.getMonth() === mo.getMonth() && p.reviewedAt.getFullYear() === mo.getFullYear());
+    const sum = (xs: typeof inMonth) => Math.round(xs.reduce((s, p) => s + p.amount, 0) / 1000);
+    return { label: mo.toLocaleDateString(intlLocale[locale], { month: "short" }), a: sum(inMonth.filter((p) => !isYear(p))), b: sum(inMonth.filter(isYear)) };
+  });
   const o = d.dash.adminOverview;
 
   return (
@@ -41,7 +47,11 @@ export default async function AdminOverview() {
         </div>
         <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
           <Panel title={`${d.dash.adminPay.revenue.replace("{m}", "")} (K ${d.common.uzs})`}>
-            <AreaChart data={revenue} labels={{ a: d.common.uzs, b: "" }} />
+            <AreaChart data={revenue} labels={{ a: f.bill.monthly, b: f.bill.yearly }} />
+            <div className="mt-2 flex gap-5 text-[13px] text-fg-muted">
+              <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#5b9dff]" /> {f.bill.monthly}</span>
+              <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#8b7bff]" /> {f.bill.yearly}</span>
+            </div>
           </Panel>
           <Panel title={o.latestRequests} action={<Link href="/admin/requests" className="btn btn-ghost btn-sm">{d.common.viewAll} <ArrowRight size={14} /></Link>}>
             <ul className="divide-y divide-line border-t border-line">

@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { eventsByCategory, eventsByDay, getActiveSubscription, todayCounts } from "@/lib/dashboard";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, intlLocale } from "@/lib/i18n";
+import { YEAR_OFF } from "@/lib/billing";
 import { ago, daysLeft, eventTime, longDate, money, shortDate } from "@/lib/format";
 import { SafetyLight } from "@/components/dash/Insights";
 import { Onboarding } from "@/components/dash/Onboarding";
@@ -19,7 +20,7 @@ const RANGES = { "7d": 7, "14d": 14, "30d": 30, "90d": 90 } as const;
 
 export default async function Overview({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const user = await requireCustomer();
-  const { d, locale } = await getDict();
+  const { d, f, locale } = await getDict();
   const org = user.organization;
   const { range: r } = await searchParams;
   const range = (r && r in RANGES ? r : "14d") as keyof typeof RANGES;
@@ -186,6 +187,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                 </div>
                 <div className="mt-5 font-display text-[30px] font-extrabold tracking-tight">{d.pricing.tiers[sub.plan.tier]} {d.dash.plan}</div>
                 <div className="text-[15px] text-fg-muted">{fmt(d.dash.camerasMonth, { n: sub.plan.maxCameras, p: money(sub.plan.priceMonthly) })}</div>
+                {sub.months === 12 && <div className="mt-2 inline-flex rounded-lg bg-emerald-400/10 px-2.5 py-1 text-[13px] font-semibold text-emerald-300">{fmt(f.z.savedYear, { n: money(YEAR_OFF[sub.plan.tier]) })}</div>}
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-violet-500" style={{ width: `${Math.round(used * 100)}%` }} /></div>
                 <div className="mt-2 flex justify-between text-[14px]">
                   <span className="text-fg-dim">{fmt(d.dash.renews, { d: longDate(sub.currentPeriodEnd!, intlLocale[locale]) })}</span>

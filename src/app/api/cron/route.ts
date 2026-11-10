@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { enforceSubscriptions } from "@/lib/subscription";
 import { dailyBackup } from "@/lib/backup";
 import { weeklyReports } from "@/lib/weekly";
-import { absentReports, dailySummaries, parentMonthly } from "@/lib/daily";
+import { absentReports, askReviews, dailySummaries, holidayCoupons, parentMonthly } from "@/lib/daily";
 
 export const dynamic = "force-dynamic";
 
@@ -21,5 +21,7 @@ export async function POST(req: Request) {
   await absentReports().then((r) => (out.absent = r)).catch((e) => (out.absent = String(e)));
   await dailySummaries().then((r) => (out.daily = r)).catch((e) => (out.daily = String(e)));
   await parentMonthly().then((r) => (out.parents = r)).catch((e) => (out.parents = String(e)));
+  await holidayCoupons().then((r) => (out.holiday = r)).catch((e) => (out.holiday = String(e)));
+  await askReviews().then((r) => (out.reviews = r)).catch((e) => (out.reviews = String(e)));
   return NextResponse.json(out);
 }

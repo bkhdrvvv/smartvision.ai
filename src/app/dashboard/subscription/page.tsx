@@ -31,7 +31,10 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   // the one-time 7-day trial is offered only while nothing is active and it was never used (by this org or phone)
   const trialAvailable = !activeSub && !(await trialUsed(org.id));
   const onTrial = !!activeSub && (await db.subscriptionEvent.count({ where: { subscriptionId: activeSub.id, note: { startsWith: "trial" } } })) > 0;
-  const SvcIcon = { SCHOOL: GraduationCap, HOME: House, FARM: Sprout }[org.service];
+  // money saved by paying yearly (each approved 365-day payment saves its tier discount)
+  const yearly = await db.payment.findMany({ where: { organizationId: org.id, status: "APPROVED", amount: { gt: 0 } }, select: { periodStart: true, periodEnd: true, subscription: { select: { plan: { select: { tier: true } } } } } });
+  const saved = yearly.filter((p) => p.periodEnd.getTime() - p.periodStart.getTime() > 60 * 86400_000).reduce((a, p) => a + YEAR_OFF[p.subscription.plan.tier], 0);
+  const SvcIcon ={ SCHOOL: GraduationCap, HOME: House, FARM: Sprout }[org.service];
   const svcName = d.solutions[org.service.toLowerCase() as "school"].name;
   const statusForChip = openPayment ? openPayment.status : sub?.status;
   const chipCls = (s?: string) => (s === "ACTIVE" || s === "APPROVED" ? "chip-ok" : s === "REJECTED" || s === "EXPIRED" ? "chip-bad" : s === "UNDER_REVIEW" ? "chip-violet" : s === "RECEIPT_SUBMITTED" ? "chip-blue" : "chip-warn");
@@ -79,6 +82,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                   </form>
                 )}
               </section>
+
+              {saved > 0 && (
+                <section className="flex items-center gap-4 rounded-[20px] border border-emerald-400/40 bg-emerald-400/10 p-5">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-400/20 text-2xl">💚</span>
+                  <div><div className="text-[13px] text-emerald-200/80">{f.z.savedTotal}</div><div className="font-display text-[26px] font-extrabold text-emerald-200">{money(saved)} {d.common.uzs}</div></div>
+                </section>
+              )}
 
               {sub.status === "REQUESTED" && <Panel title={d.dash.status.REQUESTED}><p className="text-fg-muted">{d.dash.subscriptionPage.pendingApproval}</p></Panel>}
 

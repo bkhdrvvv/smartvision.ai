@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarDays, Download, FileText } from "lucide-react";
 import { Topbar, PageBody, Panel } from "@/components/dash/Shell";
 import { PrintButton } from "@/components/dash/PrintButton";
@@ -7,7 +8,7 @@ import { getDict } from "@/lib/i18n/server";
 
 export default async function ReportsPage() {
   const user = await requireCustomer();
-  const { d } = await getDict();
+  const { d, f } = await getDict();
   const org = user.organization;
   const counts = await Promise.all([1, 7, 30].map((n) => db.event.count({ where: { organizationId: org.id, occurredAt: { gte: new Date(Date.now() - n * 86400000) } } })));
   const p = d.dash.reportsPage;
@@ -20,7 +21,10 @@ export default async function ReportsPage() {
     <>
       <Topbar crumb={`${d.nav.dashboard} / ${d.dash.menu.reports}`} title={p.title} demo={org.demo} chip={<PrintButton label={p.print} />} />
       <PageBody>
-        <p className="text-fg-muted">{p.text}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-fg-muted">{p.text}</p>
+          <Link href="/report/month" className="btn btn-primary"><FileText size={15} /> {f.z.report.link}</Link>
+        </div>
         <div className="grid gap-5 md:grid-cols-3">
           {items.map((it) => (
             <Panel key={it.days}>
