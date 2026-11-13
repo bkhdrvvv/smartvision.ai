@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { audit, getCurrentUser } from "@/lib/auth";
 import { getDict } from "@/lib/i18n/server";
-import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/session";
+import { SESSION_COOKIE, sessionCookieFor, signSession } from "@/lib/session";
 import { bumpTokenVersion, twoFactor } from "@/lib/security";
 import { newSecret, otpauthUrl, verifyTotp } from "@/lib/totp";
 import { hit } from "@/lib/ratelimit";
@@ -14,7 +14,7 @@ export type AccountResult = { ok?: boolean; error?: string; message?: string; se
 
 /** Re-issue this device's session with the new token version so only *other* devices are signed out. */
 async function reissue(user: { id: string; role: "CUSTOMER" | "ADMIN"; organizationId: string | null }, tv: number) {
-  (await cookies()).set(SESSION_COOKIE, await signSession({ uid: user.id, role: user.role, org: user.organizationId, tv }), sessionCookieOptions);
+  (await cookies()).set(SESSION_COOKIE, await signSession({ uid: user.id, role: user.role, org: user.organizationId, tv }), sessionCookieFor(user.role));
 }
 
 export async function changePassword(_: AccountResult, form: FormData): Promise<AccountResult> {

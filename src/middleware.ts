@@ -5,6 +5,11 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
 
+  // the admin panel does not exist for anyone but a signed-in admin: plain "404 page not found",
+  // so strangers and customers don't even learn there is something to attack
+  if (pathname.startsWith("/admin") && session?.role !== "ADMIN") {
+    return NextResponse.rewrite(new URL("/__not_found", req.url), { status: 404 });
+  }
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     if (!session) {
       const url = new URL("/login", req.url);

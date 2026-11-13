@@ -2,7 +2,7 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { db } from "./db";
 import { audit } from "./auth";
-import { PENDING_2FA_COOKIE, SESSION_COOKIE, SIGNUP_COOKIE, sessionCookieOptions, signPending2fa, signSession } from "./session";
+import { PENDING_2FA_COOKIE, SESSION_COOKIE, SIGNUP_COOKIE, sessionCookieFor, sessionCookieOptions, signPending2fa, signSession } from "./session";
 import { tokenVersion, twoFactor } from "./security";
 
 type U = { id: string; role: "CUSTOMER" | "ADMIN"; organizationId: string | null };
@@ -21,7 +21,7 @@ export async function isBlocked(user: Pick<U, "role" | "organizationId">) {
 /** Issue the session cookie (after every check passed) and return where to go. */
 export async function issueSession(user: U, nextRaw: unknown, how: string) {
   const jar = await cookies();
-  jar.set(SESSION_COOKIE, await signSession({ uid: user.id, role: user.role, org: user.organizationId, tv: await tokenVersion(user.id) }), sessionCookieOptions);
+  jar.set(SESSION_COOKIE, await signSession({ uid: user.id, role: user.role, org: user.organizationId, tv: await tokenVersion(user.id) }), sessionCookieFor(user.role));
   jar.delete(PENDING_2FA_COOKIE);
   jar.delete(SIGNUP_COOKIE);
   await audit(user.id, "auth.login", undefined, { how });

@@ -73,13 +73,20 @@ function key() {
   return new TextEncoder().encode(s);
 }
 
+/** Admins are signed out after 12 hours (customers stay signed in for 7 days). */
+export const ADMIN_MAX_AGE = 60 * 60 * 12;
+export const maxAgeFor = (role: string) => (role === "ADMIN" ? ADMIN_MAX_AGE : MAX_AGE);
+
 export async function signSession(p: SessionPayload) {
   return new SignJWT(p)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE}s`)
+    .setExpirationTime(`${maxAgeFor(p.role)}s`)
     .sign(key());
 }
+
+/** Cookie options for a session of this role (the cookie lives exactly as long as the token). */
+export const sessionCookieFor = (role: string) => ({ ...sessionCookieOptions, maxAge: maxAgeFor(role) });
 
 export async function verifySession(token: string | undefined): Promise<SessionPayload | null> {
   if (!token) return null;

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { twoFactor } from "@/lib/security";
 
 const esc = (v: unknown) => {
   const s = v == null ? "" : String(v);
@@ -9,7 +10,7 @@ const esc = (v: unknown) => {
 
 export async function GET(req: Request) {
   const s = await getSession();
-  if (s?.role !== "ADMIN") return new Response("forbidden", { status: 403 });
+  if (s?.role !== "ADMIN" || !(await twoFactor.secret(s.uid))) return new Response("forbidden", { status: 403 });
   const [y, m] = (new URL(req.url).searchParams.get("month") ?? "").split("-").map(Number);
   const now = new Date();
   const start = new Date(y || now.getFullYear(), (m || now.getMonth() + 1) - 1, 1);

@@ -1,10 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "./db";
 import { SESSION_COOKIE, verifySession } from "./session";
-import { tokenVersion } from "./security";
+import { tokenVersion, twoFactor } from "./security";
 
 /**
  * Verified session with role & organization re-read from the database (once per request).
@@ -41,10 +41,15 @@ export async function requireCustomer() {
   return user as typeof user & { organization: NonNullable<typeof user.organization> };
 }
 
+/**
+ * Admin only. Two-step sign-in is mandatory for admins: until the authenticator app is set up,
+ * every admin page and action sends them to /secure/2fa (the only thing they can do).
+ */
 export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) redirect("/api/auth/logout");
-  if (user.role !== "ADMIN") redirect("/dashboard");
+  if (user.role !== "ADMIN") notFound();
+  if (!(await twoFactor.secret(user.id))) redirect("/secure/2fa");
   return user;
 }
 
