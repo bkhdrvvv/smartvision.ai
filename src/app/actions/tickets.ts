@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { TicketKind } from "@prisma/client";
 import { db } from "@/lib/db";
-import { audit, getCurrentUser } from "@/lib/auth";
+import { adminReady, audit, getCurrentUser } from "@/lib/auth";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n";
 import { clientIp, hit } from "@/lib/ratelimit";
@@ -84,8 +84,8 @@ export async function createTicket(_: TicketState, form: FormData): Promise<Tick
 /** Close / reopen. Admin: any ticket. Customer: only their own. */
 export async function setTicketStatus(ticketId: string, status: "OPEN" | "CLOSED") {
   const user = await getCurrentUser();
-  if (!user) return;
-  const where = user.role === "ADMIN" ? { id: ticketId } : { id: ticketId, organizationId: user.organizationId ?? "-" };
+  if (!user || (user.role === "ADMIN" && !(await adminReady(user.id)))) return;
+  const where = user.role === "ADMIN" ?{ id: ticketId } : { id: ticketId, organizationId: user.organizationId ?? "-" };
   const t = await db.ticket.findFirst({ where });
   if (!t) return;
   await db.ticket.update({ where: { id: t.id }, data: { status } });

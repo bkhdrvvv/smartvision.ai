@@ -11,7 +11,7 @@ import { tokenVersion, twoFactor } from "./security";
  * The JWT alone is not trusted for authorization: a demoted / deleted user or a user moved to
  * another organization loses access immediately instead of when the 7-day token expires.
  */
-export const getSession = cache(async () => {
+const getSessionRaw = cache(async () => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const s = await verifySession(token);
   if (!s) return null;
@@ -24,8 +24,21 @@ export const getSession = cache(async () => {
   return { uid: u.id, role: u.role, org: u.organizationId } as const;
 });
 
+/** Is this an admin who already turned on two-step sign-in? (admin powers need it) */
+export const adminReady = cache(async (uid: string) => !!(await twoFactor.secret(uid)));
+
+/**
+ * Session for data access (API routes, pages). An admin without 2FA gets nothing here: until two-step
+ * sign-in is on, the account can only open /secure/2fa (which uses getCurrentUser).
+ */
+export const getSession = cache(async () => {
+  const s = await getSessionRaw();
+  if (s?.role === "ADMIN" && !(await adminReady(s.uid))) return null;
+  return s;
+});
+
 export const getCurrentUser = cache(async () => {
-  const s = await getSession();
+  const s = await getSessionRaw();
   if (!s) return null;
   return db.user.findUnique({
     where: { id: s.uid },
@@ -49,7 +62,7 @@ export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) redirect("/api/auth/logout");
   if (user.role !== "ADMIN") notFound();
-  if (!(await twoFactor.secret(user.id))) redirect("/secure/2fa");
+  if (!(await adminReady(user.id))) redirect("/secure/2fa");
   return user;
 }
 

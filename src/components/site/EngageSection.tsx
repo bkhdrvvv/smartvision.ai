@@ -13,11 +13,11 @@ export async function EngageSection() {
   return (
     <section className="relative mx-auto max-w-[1240px] px-5 py-20">
       <div className="grid gap-5 md:grid-cols-2">
-        <Link href="/try" className="card group flex items-center gap-4 !rounded-[24px] p-6 hover:border-brand-400/50">
+        <a href="/try" className="card group flex items-center gap-4 !rounded-[24px] p-6 hover:border-brand-400/50">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-500/15 text-brand-300"><Camera size={26} /></span>
           <span><span className="block text-[19px] font-bold">{y.tryTitle}</span><span className="block text-[13.5px] text-fg-muted">{y.tryPrivacy}</span></span>
           <span className="ml-auto text-brand-300 transition group-hover:translate-x-1">→</span>
-        </Link>
+        </a>
         <Link href="/test" className="card group flex items-center gap-4 !rounded-[24px] p-6 hover:border-violet-400/50">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-violet-300"><ShieldQuestion size={26} /></span>
           <span><span className="block text-[19px] font-bold">{y.quizTitle}</span><span className="block text-[13.5px] text-fg-muted">{y.quizLead}</span></span>

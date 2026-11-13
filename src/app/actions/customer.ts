@@ -198,9 +198,9 @@ export async function updateProfile(_: ActionResult, form: FormData): Promise<Ac
 /** Night Vision mode of one camera (Pro plan). Customers: their own cameras; admins: any. The Edge agent picks it up within ~15 s. */
 export async function setCameraNightMode(cameraId: string, mode: "auto" | "on" | "off"): Promise<ActionResult> {
   if (!["auto", "on", "off"].includes(mode)) return { error: "invalid" };
-  const { getCurrentUser } = await import("@/lib/auth");
+  const { adminReady, getCurrentUser } = await import("@/lib/auth");
   const u = await getCurrentUser();
-  if (!u) return { error: "unauthorized" };
+  if (!u || (u.role === "ADMIN" && !(await adminReady(u.id)))) return { error: "unauthorized" };
   const cam = await db.camera.findUnique({ where: { id: cameraId }, select: { id: true, organizationId: true } });
   if (!cam || (u.role !== "ADMIN" && cam.organizationId !== u.organizationId)) return { error: "not_found" };
   const sub = await getActiveSubscription(cam.organizationId);

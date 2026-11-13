@@ -49,14 +49,16 @@ export function Header({ authed, promo }: { authed: "CUSTOMER" | "ADMIN" | null;
         <nav className="hidden items-center gap-1 whitespace-nowrap xl:flex" aria-label="Main">
           {links.map((l) => {
             const active = l.href === "/" ? path === "/" : path === l.href;
+            // /try is opened as a full page load: it has its own security policy (the AI demo needs it)
+            const L = l.href === "/try" ? "a" : Link;
             return (
-              <Link
+              <L
                 key={l.href}
                 href={l.href}
                 className={cn("rounded-lg px-2.5 py-2 text-[13.5px] transition-colors", "wide" in l && l.wide && "hidden 2xl:inline-block", active ? "text-fg" : "text-fg-muted hover:text-fg")}
               >
                 {l.label}
-              </Link>
+              </L>
             );
           })}
         </nav>
@@ -103,9 +105,13 @@ export function Header({ authed, promo }: { authed: "CUSTOMER" | "ADMIN" | null;
               </div>
               {links.map((l, i) => (
                 <motion.div key={l.href} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }}>
-                  <Link href={l.href} className="block rounded-xl px-4 py-3 text-lg font-semibold hover:bg-white/5">
-                    {l.label}
-                  </Link>
+                  {l.href === "/try" ? (
+                    <a href={l.href} className="block rounded-xl px-4 py-3 text-lg font-semibold hover:bg-white/5">{l.label}</a>
+                  ) : (
+                    <Link href={l.href} className="block rounded-xl px-4 py-3 text-lg font-semibold hover:bg-white/5">
+                      {l.label}
+                    </Link>
+                  )}
                 </motion.div>
               ))}
               <div className="mt-auto space-y-3">

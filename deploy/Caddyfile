@@ -19,13 +19,18 @@ smartvisionai.uz {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "geolocation=(), camera=(), microphone=(self)"
+		# camera: the "Try the AI" page; microphone: voice notes in the support chat (own pages only)
+		Permissions-Policy "geolocation=(), camera=(self), microphone=(self)"
 		-Server
+		-X-Powered-By
 	}
 
 	reverse_proxy 127.0.0.1:3000 {
 		# the live camera relay is a long-lived MJPEG stream — never buffer it
 		flush_interval -1
+		# the visitor's real address for rate limits (the site trusts it only with TRUST_PROXY=1);
+		# Caddy writes it itself, so a fake X-Forwarded-For sent by a client is never believed
+		header_up X-Real-IP {remote_host}
 	}
 
 	log {

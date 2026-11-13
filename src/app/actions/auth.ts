@@ -10,7 +10,9 @@ import { audit } from "@/lib/auth";
 import { PENDING_2FA_COOKIE, SESSION_COOKIE, SIGNUP_COOKIE, sessionCookieOptions, signSession, signSignup, verifyPending2fa, verifySignup } from "@/lib/session";
 import { loginSchema, registerSchema } from "@/lib/validators";
 import { getDict } from "@/lib/i18n/server";
-import { fmt } from "@/lib/i18n";
+import { fmt, isLocale, type Locale } from "@/lib/i18n";
+import { featureDicts } from "@/lib/i18n/features";
+import { sendEmail, siteUrl } from "@/lib/notify";
 import { clientIp, hit } from "@/lib/ratelimit";
 import { bumpTokenVersion, twoFactor } from "@/lib/security";
 import { consumeAuthToken, sendResetEmail, sendVerificationEmail } from "@/lib/authTokens";
@@ -91,7 +93,7 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   const { email, password } = parsed.data;
   // Throttle per (email + IP): a stranger can't lock the real owner out from elsewhere.
   // A looser per-email limit still slows attacks spread over many IPs; plus a per-IP limit against spraying.
-  if (!hit(`login:${email}|${ip}`, 8, 15 * 60_000) || !hit(`login-mail:${email}`, 60, 15 * 60_000) || !hit(`login-ip:${ip}`, 30, 15 * 60_000))
+  if (!hit(`login:${email}|${ip}`, 8, 15 * 60_000) || !hit(`login-mail:${email}`, 20, 15 * 60_000) || !hit(`login-ip:${ip}`, 30, 15 * 60_000))
     return { error: d.auth.tooMany, fields: { email } };
 
   const user = await db.user.findUnique({ where: { email } });
@@ -112,12 +114,17 @@ export async function signupEmailAction(_: FormState, form: FormData): Promise<F
   const email = normEmail(form.get("email"));
   const plan = String(form.get("plan") ?? "");
   if (!EMAIL_RE.test(email)) return { error: d.auth.invalidEmail, fields: { email }, fieldErrors: ["email"] };
-  if (await db.user.findUnique({ where: { email }, select: { id: true } })) return { error: d.auth.exists, fields: { email }, fieldErrors: ["email"] };
 
   if (mode === "send") {
     const lim = await canSendCode(email);
     if (lim !== "ok") return { error: lim === "wait" ? d.auth.codeWait : d.auth.tooMany, fields: { email }, codeSent: lim === "wait" };
-    await issueEmailCode(email, "REGISTER", locale);
+    // Same answer whether or not the address is registered (nobody can probe who uses the service).
+    // The real owner of an existing account gets a "you already have an account — sign in" email instead of a code.
+    const existing = await db.user.findUnique({ where: { email }, select: { locale: true } });
+    if (existing) {
+      const z = featureDicts[(isLocale(existing.locale) ? existing.locale : locale) as Locale].z;
+      await sendEmail(email, z.existsMailSubject, z.existsMailBody, { href: siteUrl("/login"), label: z.existsMailLink }).catch(() => {});
+    } else await issueEmailCode(email, "REGISTER", locale);
     return { codeSent: true, fields: { email } };
   }
 

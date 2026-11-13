@@ -19,7 +19,18 @@ export function hit(key: string, limit: number, windowMs: number): boolean {
   return b.n <= limit;
 }
 
+/**
+ * The visitor's IP for rate limits. X-Forwarded-For / X-Real-IP are written by the *client* unless a proxy
+ * overwrites them, so a password guesser could send a new fake IP with every try and never hit the limit.
+ * They are trusted only with TRUST_PROXY=1, i.e. behind nginx that sets `X-Real-IP $remote_addr`
+ * (then the right-most X-Forwarded-For entry — added by our own proxy — is used, never the client's).
+ * Without a proxy every request counts as one source: limits stay strict instead of becoming bypassable.
+ */
 export async function clientIp() {
+  if (process.env.TRUST_PROXY !== "1") return "direct";
   const h = await headers();
-  return (h.get("x-forwarded-for")?.split(",")[0] || h.get("x-real-ip") || "local").trim();
+  const real = h.get("x-real-ip")?.trim();
+  if (real) return real;
+  const chain = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return chain.at(-1) ?? "direct";
 }
