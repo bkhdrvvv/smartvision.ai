@@ -32,7 +32,7 @@ export async function resolveEvent(id: string) {
 
 export async function addCamera(_: ActionResult, form: FormData): Promise<ActionResult> {
   const u = await requireCustomer();
-  if (!["OWNER", "MEMBER"].includes(u.orgRole)) return { error: "forbidden" }; // team members: see Settings → Team
+  if (!["OWNER", "MEMBER"].includes(u.orgRole)) return { error: (await getDict()).f.z.camEditOnly }; // team members: see Settings → Team
   const { d } = await getDict();
   const parsed = cameraSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: d.common.error };
@@ -57,7 +57,7 @@ export async function addCamera(_: ActionResult, form: FormData): Promise<Action
 
 export async function updateCamera(_: ActionResult, form: FormData): Promise<ActionResult> {
   const u = await requireCustomer();
-  if (!["OWNER", "MEMBER"].includes(u.orgRole)) return { error: "forbidden" }; // team members: see Settings → Team
+  if (!["OWNER", "MEMBER"].includes(u.orgRole)) return { error: (await getDict()).f.z.camEditOnly }; // team members: see Settings → Team
   const { d } = await getDict();
   const id = String(form.get("id") ?? "");
   const parsed = cameraSchema.safeParse(Object.fromEntries(form));
@@ -87,7 +87,7 @@ export async function removeCamera(id: string) {
 /** Customer requests a plan → admin must approve */
 export async function requestPlan(_: ActionResult, form: FormData): Promise<ActionResult> {
   const u = await requireCustomer();
-  if (!["OWNER"].includes(u.orgRole)) return { error: "forbidden" }; // team members: see Settings → Team
+  if (!["OWNER"].includes(u.orgRole)) return { error: (await getDict()).f.z.ownerOnly }; // team members: see Settings → Team
   const { d } = await getDict();
   const planId = String(form.get("planId") ?? "");
   const code = String(form.get("coupon") ?? "").trim().toUpperCase();
@@ -121,7 +121,7 @@ export async function requestPlan(_: ActionResult, form: FormData): Promise<Acti
 /** Customer starts their one-time 7-day free trial for the chosen plan */
 export async function startTrial(planId: string): Promise<ActionResult> {
   const u = await requireCustomer();
-  if (!["OWNER"].includes(u.orgRole)) return { error: "forbidden" }; // team members: see Settings → Team
+  if (!["OWNER"].includes(u.orgRole)) return { error: (await getDict()).f.z.ownerOnly }; // team members: see Settings → Team
   const { d } = await getDict();
   // anti-abuse: a free trial needs a confirmed email (in addition to the one-trial-per-phone rule)
   if (!u.emailVerifiedAt) return { error: d.dash.trial.verifyFirst };
@@ -151,7 +151,7 @@ export async function checkCoupon(code: string) {
 /** Renew: creates a new payment for the next period on the active subscription */
 export async function renewSubscription(): Promise<ActionResult> {
   const u = await requireCustomer();
-  if (!["OWNER"].includes(u.orgRole)) return { error: "forbidden" }; // team members: see Settings → Team
+  if (!["OWNER"].includes(u.orgRole)) return { error: (await getDict()).f.z.ownerOnly }; // team members: see Settings → Team
   const { d } = await getDict();
   const sub = (await getActiveSubscription(u.organization.id)) ?? (await getExpiredSubscription(u.organization.id));
   if (!sub) return { error: d.dash.kpi.noSub };

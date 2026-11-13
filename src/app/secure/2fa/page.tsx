@@ -27,7 +27,7 @@ export default async function AdminTwoFactorSetup() {
       <section className="card mt-8 p-6">
         <h1 className="flex items-center gap-2 text-[22px] font-extrabold"><ShieldAlert size={22} className="text-amber-300" /> {z.adm2faTitle}</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{z.adm2faText}</p>
-        <div className="mt-6"><SecurityPanel twofaEnabled={false} /></div>
+        <div className="mt-6"><SecurityPanel twofaEnabled={false} only2fa /></div>
         <div className="mt-6 flex flex-wrap gap-3 border-t border-line pt-5">
           {/* full navigation so the server re-checks 2FA */}
           <a href="/admin" className="btn btn-primary">{z.adm2faGo}</a>

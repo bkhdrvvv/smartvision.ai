@@ -10,7 +10,7 @@ import { bumpTokenVersion, twoFactor } from "@/lib/security";
 import { newSecret, otpauthUrl, verifyTotp } from "@/lib/totp";
 import { hit } from "@/lib/ratelimit";
 
-export type AccountResult = { ok?: boolean; error?: string; message?: string; secret?: string; url?: string } | undefined;
+export type AccountResult = { ok?: boolean; error?: string; message?: string; secret?: string; url?: string; qr?: string } | undefined;
 
 /** Re-issue this device's session with the new token version so only *other* devices are signed out. */
 async function reissue(user: { id: string; role: "CUSTOMER" | "ADMIN"; organizationId: string | null }, tv: number) {
@@ -48,17 +48,22 @@ export async function signOutEverywhere(): Promise<AccountResult> {
 /* ───── 2FA (authenticator app) ───── */
 export async function start2fa(): Promise<AccountResult> {
   const u = await getCurrentUser();
-  if (!u) return { error: "unauthorized" };
-  if (await twoFactor.secret(u.id)) return { error: "already_enabled" };
+  const { d, f } = await getDict();
+  if (!u) return { error: d.common.error };
+  if (await twoFactor.secret(u.id)) return { error: f.z.already2fa };
   const secret = newSecret();
   await twoFactor.setPending(u.id, secret);
-  return { ok: true, secret, url: otpauthUrl(secret, u.email) };
+  const url = otpauthUrl(secret, u.email);
+  // QR made here on the server (the secret never goes to any outside service): scan it with the phone app
+  const { toString } = await import("qrcode");
+  const qr = await toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#0b1226", light: "#ffffff" } });
+  return { ok: true, secret, url, qr };
 }
 
 export async function confirm2fa(code: string): Promise<AccountResult> {
   const u = await getCurrentUser();
   const { d } = await getDict();
-  if (!u) return { error: "unauthorized" };
+  if (!u) return { error: d.common.error };
   if (!hit(`2fa-setup:${u.id}`, 10, 15 * 60_000)) return { error: d.auth.tooMany };
   const pending = await twoFactor.pending(u.id);
   if (!pending || !verifyTotp(pending, code)) return { error: d.auth.codeInvalid };
@@ -71,7 +76,7 @@ export async function confirm2fa(code: string): Promise<AccountResult> {
 export async function disable2fa(code: string): Promise<AccountResult> {
   const u = await getCurrentUser();
   const { d } = await getDict();
-  if (!u) return { error: "unauthorized" };
+  if (!u) return { error: d.common.error };
   if (!hit(`2fa-setup:${u.id}`, 10, 15 * 60_000)) return { error: d.auth.tooMany };
   const secret = await twoFactor.secret(u.id);
   if (!secret || !verifyTotp(secret, code)) return { error: d.auth.codeInvalid };
