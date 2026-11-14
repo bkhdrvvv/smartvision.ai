@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { audit } from "@/lib/auth";
+import { audit, revokeSessionToken } from "@/lib/auth";
 import { PENDING_2FA_COOKIE, SESSION_COOKIE, SIGNUP_COOKIE, sessionCookieOptions, signSession, signSignup, verifyPending2fa, verifySignup } from "@/lib/session";
 import { loginSchema, registerSchema } from "@/lib/validators";
 import { getDict } from "@/lib/i18n/server";
@@ -238,6 +238,8 @@ export async function resetPassword(_: FormState, form: FormData): Promise<FormS
 }
 
 export async function logoutAction() {
-  (await cookies()).delete(SESSION_COOKIE);
+  const jar = await cookies();
+  await revokeSessionToken(jar.get(SESSION_COOKIE)?.value); // a copied cookie stops working too
+  jar.delete(SESSION_COOKIE);
   redirect("/login");
 }

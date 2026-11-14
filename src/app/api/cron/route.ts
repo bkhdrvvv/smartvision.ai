@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { enforceSubscriptions } from "@/lib/subscription";
+import { purgeRevokedTokens } from "@/lib/auth";
 import { dailyBackup } from "@/lib/backup";
 import { weeklyReports } from "@/lib/weekly";
 import { absentReports, askReviews, dailySummaries, holidayCoupons, parentMonthly } from "@/lib/daily";
@@ -23,5 +24,6 @@ export async function POST(req: Request) {
   await parentMonthly().then((r) => (out.parents = r)).catch((e) => (out.parents = String(e)));
   await holidayCoupons().then((r) => (out.holiday = r)).catch((e) => (out.holiday = String(e)));
   await askReviews().then((r) => (out.reviews = r)).catch((e) => (out.reviews = String(e)));
+  await purgeRevokedTokens().then((n) => (out.revoked = n)).catch((e) => (out.revoked = String(e)));
   return NextResponse.json(out);
 }

@@ -39,6 +39,16 @@ maxfiy fayllar (`.env`, `.git`, `prisma`, `uploads`, `backups`), saytni boshqa s
 6. Jamoa a'zosi xarid qila olmaydi va sababini tushunarli ko'radi
 (Test uchun vaqtinchalik hisoblar ochildi va oxirida o'chirildi. Sizning Telegramingizga "yangi ariza / chek" xabarlari sinovdan kelgan bo'lishi mumkin.)
 
+## 4b. Kuchli hujum (14-noyabr) va tuzatishlar
+| # | Topilgan | Xavf | Holat |
+|---|---|---|---|
+| 9 | **Saytni qotirish (DoS):** mijoz admin amalining ID'sini yuborsa, so'rov cheksiz aylanib qolardi (Next.js amalni `/admin` sahifasiga uzatardi, u esa 404 sahifasiga, u yana uzatardi…). Har so'rov server xotirasini band qilardi. | 🔴 Yuqori | ✅ Tuzatildi — endi 50 ms da rad etiladi; urinish audit jurnaliga yoziladi |
+| 10 | **Kuponni qayta ishlatish:** bitta mijoz AKSIYA20/ULASH10 ni har yangi arizada qayta ishlata olardi; bir martalik DOST kuponi to'lovgacha bir nechta mijozga ishlardi | 🟠 O'rta (pul) | ✅ Har kupon bir hisob uchun bir marta; DOST faqat egasiga; limitda kutilayotgan arizalar ham hisoblanadi |
+| 11 | **Chiqishdan keyin ham token ishlardi** (o'g'irlangan cookie 7 kungacha amal qilardi) | 🟡 Past | ✅ "Chiqish" bosilganda token serverda bekor qilinadi (boshqa qurilmalar chiqib ketmaydi) |
+
+Buzib bo'lmagan hujumlar: admin amallarini haqiqiy ID bilan chaqirish, CSRF (boshqa saytdan buyruq), soxta fayl (HTML/SVG rasm qilib), `../` yo'li, stored XSS (nom va xabarda skript), 2FA'siz admin, SQL injection (kodda xom SQL yo'q), parol tiklash havolasi, Google kirish, Edge orqali boshqa mijozga hodisa.
+Qayta tekshiruv: oddiy hujumlar 34/34 to'xtatildi, kuchli hujumlar hammasi to'xtatildi, xarid zanjiri to'liq ishlaydi.
+
 ## 5. Serverga chiqarishda albatta
 - `.env` da **`TRUST_PROXY="1"`** bo'lsin (namuna: `deploy/env.production.example`) — busiz hamma tashrif bitta IP deb hisoblanadi.
 - Caddy sozlamasi (`deploy/Caddyfile`) yangilandi — haqiqiy IP'ni o'zi beradi.

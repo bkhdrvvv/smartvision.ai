@@ -8,6 +8,10 @@ export async function middleware(req: NextRequest) {
   // the admin panel does not exist for anyone but a signed-in admin: plain "404 page not found",
   // so strangers and customers don't even learn there is something to attack
   if (pathname.startsWith("/admin") && session?.role !== "ADMIN") {
+    // Server actions (POST) get a bare 404: Next forwards an action call to the page that owns the action
+    // (here /admin/...), and a rewrite to the 404 page would receive the forwarded action and forward it again —
+    // an endless loop that hung the request (a customer could wear the server down with forged calls).
+    if (req.method !== "GET" && req.method !== "HEAD") return new NextResponse("Not found", { status: 404 });
     return NextResponse.rewrite(new URL("/__not_found", req.url), { status: 404 });
   }
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {

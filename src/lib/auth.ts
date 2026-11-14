@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { db } from "./db";
 import { SESSION_COOKIE, verifySession } from "./session";
 import { tokenVersion, twoFactor } from "./security";
@@ -21,8 +21,27 @@ const getSessionRaw = cache(async () => {
   if (u.role !== "ADMIN" && u.organization?.blockedAt) return null;
   // signed out everywhere (e.g. password changed on another device) → this token is no longer valid
   if ((s.tv ?? 0) !== (await tokenVersion(u.id))) return null;
+  // this very token was signed out ("Sign out" pressed) → a copied cookie is dead too
+  if (s.jti && (await db.setting.findUnique({ where: { key: `revoked:${s.jti}` }, select: { key: true } }))) return null;
   return { uid: u.id, role: u.role, org: u.organizationId } as const;
 });
+
+/** "Sign out": kill this session token on the server (not only in the browser). Other devices stay signed in. */
+export async function revokeSessionToken(token: string | undefined) {
+  const s = (await verifySession(token)) as (Awaited<ReturnType<typeof verifySession>> & { exp?: number }) | null;
+  if (!s?.jti) return;
+  const until = new Date(((s.exp ?? 0) * 1000) || Date.now() + 8 * 86400_000).toISOString();
+  await db.setting.upsert({ where: { key: `revoked:${s.jti}` }, create: { key: `revoked:${s.jti}`, value: until }, update: { value: until } }).catch(() => {});
+}
+
+/** Forget revoked tokens that have expired anyway (keeps the table small). */
+export async function purgeRevokedTokens() {
+  const rows = await db.setting.findMany({ where: { key: { startsWith: "revoked:" } }, select: { key: true, value: true } });
+  const now = new Date().toISOString();
+  const old = rows.filter((r) => r.value < now).map((r) => r.key);
+  if (old.length) await db.setting.deleteMany({ where: { key: { in: old } } });
+  return old.length;
+}
 
 /** Is this an admin who already turned on two-step sign-in? (admin powers need it) */
 export const adminReady = cache(async (uid: string) => !!(await twoFactor.secret(uid)));
@@ -61,7 +80,14 @@ export async function requireCustomer() {
 export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) redirect("/api/auth/logout");
-  if (user.role !== "ADMIN") notFound();
+  // A non-admin only gets here by forging a server-action call (pages under /admin are a 404 in middleware).
+  // Send them to the sign-out route handler: no page is rendered for the answer, so it returns at once.
+  // (notFound(), an error or a redirect to a page made Next re-render inside the forged call and the request
+  // never finished — each one held server memory, so a customer could wear the server down.)
+  if (user.role !== "ADMIN") {
+    await audit(user.id, "security.forged_admin_action").catch(() => {});
+    redirect("/api/auth/logout");
+  }
   if (!(await adminReady(user.id))) redirect("/secure/2fa");
   return user;
 }

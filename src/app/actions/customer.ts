@@ -96,7 +96,8 @@ export async function requestPlan(_: ActionResult, form: FormData): Promise<Acti
   if (!plan) return { error: d.common.error };
   let couponId: string | undefined;
   if (code) {
-    const c = await validCoupon(code);
+    const c = await validCoupon(code, u.organization.id);
+    if (c === "used") return { error: (await getDict()).f.z.couponUsed };
     if (!c) return { error: d.dash.subscriptionPage.couponBad };
     couponId = c.id;
   }
@@ -134,18 +135,35 @@ export async function startTrial(planId: string): Promise<ActionResult> {
   return { ok: true, message: fmt(d.dash.notify.trialStartedBody, { n: TRIAL_DAYS, d: r.end.toISOString().slice(0, 10) }) };
 }
 
-async function validCoupon(code: string) {
+const OPEN_STATUSES = ["REQUESTED", "APPROVED", "AWAITING_PAYMENT", "RECEIPT_SUBMITTED", "UNDER_REVIEW"] as const;
+
+/**
+ * A coupon this organization may still use:
+ *  - active, not expired;
+ *  - never used by this organization before (one promo per customer — no new request every month with the same code);
+ *  - limited coupons: paid uses + requests still waiting must stay under the limit (two customers can't both
+ *    "reserve" a one-time code before either pays);
+ *  - a friend-referral reward (DOST-…) only for the organization that earned it.
+ */
+async function validCoupon(code: string, orgId: string): Promise<{ id: string; percentOff: number } | "used" | null> {
   const c = await db.coupon.findUnique({ where: { code } });
   if (!c || !c.active) return null;
   if (c.expiresAt && c.expiresAt < new Date()) return null;
-  if (c.maxRedemptions !== null && c.redemptions >= c.maxRedemptions) return null;
+  const owner = await db.setting.findFirst({ where: { key: { startsWith: "refcoupon:", endsWith: `:${code}` } }, select: { key: true } });
+  if (owner && owner.key.split(":")[1] !== orgId) return null;
+  // used = paid or being checked; an unpaid request is replaced by the new one, so it doesn't count
+  if (await db.subscription.findFirst({ where: { organizationId: orgId, couponId: c.id, status: { in: ["ACTIVE", "EXPIRED", "RECEIPT_SUBMITTED", "UNDER_REVIEW"] } }, select: { id: true } })) return "used";
+  if (c.maxRedemptions !== null) {
+    const waiting = await db.subscription.count({ where: { couponId: c.id, status: { in: [...OPEN_STATUSES] }, organizationId: { not: orgId } } });
+    if (c.redemptions + waiting >= c.maxRedemptions) return null;
+  }
   return c;
 }
 
 export async function checkCoupon(code: string) {
-  await requireCustomer();
-  const c = await validCoupon(code.trim().toUpperCase());
-  return c ? { percentOff: c.percentOff } : null;
+  const u = await requireCustomer();
+  const c = await validCoupon(code.trim().toUpperCase(), u.organization.id);
+  return c && c !== "used" ? { percentOff: c.percentOff } : null;
 }
 
 /** Renew: creates a new payment for the next period on the active subscription */

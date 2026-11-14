@@ -10,6 +10,8 @@ export type SessionPayload = {
   org: string | null;
   /** token version — must match the user's current one (bumped on password change) */
   tv?: number;
+  /** this sign-in's own id: "Sign out" revokes exactly this token (other devices stay signed in) */
+  jti?: string;
 };
 
 export const PENDING_2FA_COOKIE = "sv_2fa";
@@ -80,6 +82,7 @@ export const maxAgeFor = (role: string) => (role === "ADMIN" ? ADMIN_MAX_AGE : M
 export async function signSession(p: SessionPayload) {
   return new SignJWT(p)
     .setProtectedHeader({ alg: "HS256" })
+    .setJti(p.jti ?? crypto.randomUUID())
     .setIssuedAt()
     .setExpirationTime(`${maxAgeFor(p.role)}s`)
     .sign(key());
@@ -93,7 +96,7 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     if (payload.p2fa || payload.su || payload.oa || typeof payload.role !== "string") return null; // helper tokens are never a session
-    return { uid: String(payload.uid), role: payload.role as SessionPayload["role"], org: (payload.org as string) ?? null, tv: Number(payload.tv) || 0 };
+    return { uid: String(payload.uid), role: payload.role as SessionPayload["role"], org: (payload.org as string) ?? null, tv: Number(payload.tv) || 0, jti: payload.jti, exp: payload.exp } as SessionPayload & { exp?: number };
   } catch {
     return null;
   }
